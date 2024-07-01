@@ -1,3 +1,6 @@
 module.exports = {
-    InfoController  : require('./info-controller')
+    InfoController  : require('./info-controller'),
+    playerController : require('./playerController'),
+    teamController : require('./teamController'),
+    tournamentController : require('./tournamentController')
 }
