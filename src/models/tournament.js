@@ -7,6 +7,7 @@ const tournamentSchema = new mongoose.Schema({
     },
     formatId:{
         type: mongoose.Schema.Types.ObjectId,
+        default : null,
     },
     formatName:{
         type: String,
@@ -34,15 +35,18 @@ const tournamentSchema = new mongoose.Schema({
     },
     teams:[{
         type:mongoose.Schema.Types.ObjectId,
-        ref: "team"
+        ref: "team",
+        default : null
     }],
     participants:[{
         type:mongoose.Schema.Types.ObjectId,
-        ref: "player"
+        ref: "player",
+        default : null,
     }],
     players:[{
         type:mongoose.Schema.Types.ObjectId,
-        ref: "player"
+        ref: "player",
+        default : null,
     }],
 },{timestamps:true})
 

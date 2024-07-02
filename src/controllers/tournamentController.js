@@ -7,37 +7,50 @@ const roundModel = require("../models/Rounds");
 const matchModel = require("../models/matches");
 const { SuccessResponse, ErrorResponse } = require("../utils/common/index");
 
-const arrangingTeamsBasedOnFixingType = async (idsArr, tourId) => {
+const arrangingTeamsBasedOnFixingType = (fixingType, teams) => {
   try {
-    // arr = [1,2,3,4,5,6,7,8]
-    let arr2 = [1];
-    idsArr = idsArr.map((value, index) => {
-      let obj = {
-        tournamentID: "667eba1bcef0fb85d04b799a",
-        teamNumber: value,
-        sportName: "cricket",
-        teamName: "Team #" + value,
-      };
-      return obj;
-      // let newTeam = new teamModel(obj);
-      // let saveTeam = await newTeam.save();
-      // console.log('team ',(index+1)," , ",saveTeam);
-      // console.log('team id :',saveTeam?._id?.toString())
-      // idsArr.push(saveTeam?._id?.toString());
-    });
+    let arrangedTeams = [];
+    // let matchFixingType = "random";
+    // let matchFixingType = "top_vs_bottom";
+    let matchFixingType = fixingType.toLowerCase();
 
-    // const data = await teamModel.find({ tournamentID: "667eba1bcef0fb85d04b799a" });
-    // console.log("object of teams : ", data);
-    console.log("before", [...idsArr]);
-    const teams = await teamModel.create([
-      // { tournamentID: "667eba1bcef0fb85d04b799a", teamNumber: 1, teamName: "team #1" },
-      // { tournamentID: "667eba1bcef0fb85d04b799a", teamNumber: 2, teamName: "team #2" },
-      ...idsArr,
-    ]);
-    console.log("data of teams : ", teams);
-    idsArr = teams?.map((team) => team?._id?.toString());
-    console.log("teams array : ", idsArr);
-    return teams;
+    if (matchFixingType === "top_vs_bottom") {
+      let updatedTeams = [];
+      let start = 0;
+      let end = teams.length - 1;
+      while (start <= end) {
+        if (start === end) {
+          updatedTeams.push(teams[start]);
+          start++;
+          end--;
+        } else if (start < end) {
+          updatedTeams.push(teams[start]);
+          updatedTeams.push(teams[end]);
+          start++;
+          end--;
+        }
+      }
+      arrangedTeams = updatedTeams;
+    }
+    if (matchFixingType === "random" || matchFixingType === "manual") {
+      // Generate random sorting metrics proportional to array length
+      let randomMetrics = teams.map((item) => ({
+        item,
+        sortMetric: Math.floor(Math.random() * teams.length),
+      }));
+      // Sort based on the generated metrics
+      console.log("randomMetrics before sort: ", randomMetrics);
+      randomMetrics.sort((a, b) => a.sortMetric - b.sortMetric);
+      console.log("randomMetrics after sort : ", randomMetrics);
+      // Extract sorted items
+      arrangedTeams = randomMetrics.map((item) => item.item);
+    }
+    if (matchFixingType === "sequential") {
+      arrangedTeams = teams;
+    }
+
+    console.log(matchFixingType, " : ", arrangedTeams);
+    return arrangedTeams;
   } catch (error) {
     console.log("error in creating teams", error?.message);
     throw new Error(error?.message);
@@ -81,7 +94,6 @@ const createTournament = async (req, res) => {
             : `Qualification Round ${i}`;
         roundNames.push(roundType);
       }
-
     }
 
     // 1. stores all teams in to round 1
@@ -91,7 +103,6 @@ const createTournament = async (req, res) => {
     //creating tournament
 
     const tournamentData = {
-
       tournamentID: random,
       formatName: data.formatType,
       fixingType: data.fixingType,
@@ -304,8 +315,15 @@ const createTournament = async (req, res) => {
       })
       .populate(["matches"]);
     console.log("all rounds : ", allRoundsAndMatches);
-    const arrangedTeams = await arrangingTeamsBasedOnFixingType(data.fixingType,allRoundsAndMatches);
-    let fixingType = "sequential";
+    const arrangedTeams = arrangingTeamsBasedOnFixingType(
+      data.fixingType,
+      teamsIds
+    );
+    console.log(
+      "arranged Teams length : ",
+      arrangedTeams,
+      arrangedTeams.length
+    );
     await allRoundsAndMatches?.forEach(async (round) => {
       let teams = round?.teams?.length;
       if (teams % 2 !== 0) {
@@ -317,10 +335,28 @@ const createTournament = async (req, res) => {
         await round?.matches[0].save();
         await round?.matches[lastIndex - 1].save();
       }
+
+      if (round?.roundNumber === 1) {
+        let index = 0;
+        round.matches.forEach(async (match, i) => {
+          if (index < arrangedTeams.length) {
+            match.teamA = arrangedTeams[index];
+            if (index + 1 < arrangedTeams.length) {
+              match.teamB = arrangedTeams[index + 1];
+              index += 2;
+            }
+            const matchData = await round?.matches[i].save();
+            console.log("match : ", i, " ,data : ", matchData);
+          }
+        });
+      }
     });
 
     // storing rounds ids in format model
-    const allRounds = await roundModel.find({ tournamentID: tourId }).populate('matches');
+    const allRounds = await roundModel
+      .find({ tournamentID: tourId })
+      .populate("matches");
+    console.log("round 1 matches : ", allRounds[0].matches);
     let roundsIds = allRounds?.map((round) => round?._id?.toString());
     tournamentFormat?.rounds.push(...roundsIds);
     tournamentFormat = await tournamentFormat.save();
@@ -353,4 +389,3 @@ const createTournament = async (req, res) => {
 module.exports = {
   createTournament,
 };
-
