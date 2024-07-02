@@ -73,7 +73,7 @@ async function createRoundsAndMatches(roundsData) {
 }
 let roundData = [];
 function calculateRoundsAndNames() {
-  let teams = 9;
+  let teams = 12;
   const totalRounds = Math.ceil(Math.log2(teams));
   const roundNames = [];
 
@@ -134,8 +134,8 @@ function calculateRoundsAndNames() {
   }
   // console.log("rounds names : ", roundNames);
 }
-// calculateRoundsAndNames();
-// console.log('map matches : ',roundMatchMap);
+calculateRoundsAndNames();
+console.log('map matches : ',roundMatchMap);
 // console.log('rounds Data : ',roundData);
 // createRoundsAndMatches(roundData);
 // console.log("odd : ", Math.floor(5/ 2));
@@ -145,7 +145,7 @@ const arrangeTeamsBasedOnType = (teams) => {
     let arrangedTeams = [];
     // let matchFixingType = "random";
     let matchFixingType = "top_vs_bottom";
-    
+
     if (matchFixingType === "top_vs_bottom") {
       let updatedTeams = [];
       let start = 0;
@@ -194,4 +194,4 @@ for (let i = 0; i < 9; i++) {
   tourTeams.push("Team #" + (i + 1));
 }
 console.log("teams before arrangement : ", tourTeams);
-const teams = arrangeTeamsBasedOnType(tourTeams);
+// const teams = arrangeTeamsBasedOnType(tourTeams);

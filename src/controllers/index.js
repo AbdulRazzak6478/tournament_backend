@@ -3,5 +3,6 @@ module.exports = {
     playerController : require('./playerController'),
     teamController : require('./teamController'),
     tournamentController : require('./tournamentController'),
-    updateWinnerController : require('./updateMatchWinner')
+    updateWinnerController : require('./updateMatchWinner'),
+    getRoundsController : require('./getTournamentRounds'), 
 }
