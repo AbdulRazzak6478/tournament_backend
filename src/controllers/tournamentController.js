@@ -7,7 +7,7 @@ const roundModel = require("../models/Rounds");
 const matchModel = require("../models/matches");
 const { SuccessResponse, ErrorResponse } = require("../utils/common/index");
 
-const createTeams = async (idsArr, tourId) => {
+const arrangingTeamsBasedOnFixingType = async (idsArr, tourId) => {
   try {
     // arr = [1,2,3,4,5,6,7,8]
     let arr2 = [1];
@@ -60,6 +60,7 @@ const createTournament = async (req, res) => {
       gameType: req.body.gameType,
       teams: +req.body.totalTeams,
     };
+
     console.log("data : ", data);
     const totalRounds = Math.ceil(Math.log2(data.teams));
     const roundNames = [];
@@ -68,8 +69,6 @@ const createTournament = async (req, res) => {
     console.log("total : ", totalRounds);
 
     let roundType = "";
-    // let roundMatchMap = new Map();
-    // // let tourTeams = data.teams;
     for (let i = 1; i <= totalRounds; i++) {
       if (i === totalRounds) {
         roundNames.push("Final");
@@ -82,49 +81,8 @@ const createTournament = async (req, res) => {
             : `Qualification Round ${i}`;
         roundNames.push(roundType);
       }
-      // if (tourTeams % 2 !== 0) {
-      //   let matches = Math.round(tourTeams / 2);
-      //   tourTeams = Math.floor(tourTeams / 2);
-      //   roundMatchMap.set(i, matches);
-      //   let obj = {
-      //     roundNumber: i,
-      //     roundName: roundNames[i - 1],
-      //     tourId: "tourID",
-      //     formatId: "formatID",
-      //     matches: roundMatchMap.get(i),
-      //   };
-      //   roundsData.push(obj);
-      // } else if (tourTeams % 2 === 0) {
-      //   let matches = Math.round(tourTeams / 2);
-      //   tourTeams = Math.floor(tourTeams / 2);
-      //   roundMatchMap.set(i, matches);
-      //   let obj = {
-      //     roundNumber: i,
-      //     roundName: roundNames[i - 1],
-      //     tourId: "tourID",
-      //     formatId: "formatID",
-      //     matches: roundMatchMap.get(i),
-      //   };
-      //   roundsData.push(obj);
-      // } else {
-      //   let obj = {
-      //     roundNumber: i,
-      //     roundName: roundNames[i - 1],
-      //     tourId: "tourID",
-      //     formatId: "formatID",
-      //     matches: roundMatchMap.get(i),
-      //   };
-      //   roundsData.push(obj);
-      // }
+
     }
-    // console.log("rounds matches map : ", roundMatchMap);
-    // SuccessResponse.data = {
-    //   totalRounds : totalRounds,
-    //   roundNames : roundNames,
-    //   roundMatchMap : roundMatchMap,
-    //   roundData : roundData,
-    // }
-    // return res.status(201).json(SuccessResponse);
 
     // 1. stores all teams in to round 1
     // create matches into all rounds
@@ -133,6 +91,7 @@ const createTournament = async (req, res) => {
     //creating tournament
 
     const tournamentData = {
+
       tournamentID: random,
       formatName: data.formatType,
       fixingType: data.fixingType,
@@ -171,21 +130,14 @@ const createTournament = async (req, res) => {
       // idsArr.push(saveTeam?._id?.toString());
     });
 
-    // { tournamentID: "667eba1bcef0fb85d04b799a", teamNumber: 1, teamName: "team #1" },
-    // { tournamentID: "667eba1bcef0fb85d04b799a", teamNumber: 2, teamName: "team #2" },
     const teams = await teamModel.create([...newArray]);
     console.log("data of teams created : ", teams);
     let teamsIds = teams?.map((team) => team?._id?.toString());
     console.log("teams ids : ", teamsIds);
     SuccessResponse.data = teams;
     if (teamsIds.length > 0) {
-      // console.log("teams ids : ", teamsIds);
-      // console.log('before tour : ',tournament);
       tournament.teams.push(...teamsIds);
       await tournament.save();
-      // console.log('after tour : ',tournament);
-      // console.log("tournament after adding teams : ", tournament);
-      // return res.status(201).json(SuccessResponse);
     }
 
     // creating knockout section
@@ -220,69 +172,32 @@ const createTournament = async (req, res) => {
     // let roundsData = [];
     let roundMatchMap = new Map();
     let tourTeams = data.teams;
-    for (let i = 1; i <=totalRounds; i++) {
+    for (let i = 1; i <= totalRounds; i++) {
       let roundObj = {
         tournamentID: tournament?._id?.toString(),
         formatTypeID: tournamentFormat?._id?.toString(),
         fixingType: data.fixingType,
         gameType: data.gameType,
         roundNumber: i,
-        roundName: roundNames[i-1],
+        roundName: roundNames[i - 1],
         // teams: teamsIds,
       };
-      // if(i===1){
-      //   roundObj.teams = teamsIds; 
-      // }
       if (tourTeams % 2 !== 0) {
         let matches = Math.round(tourTeams / 2);
         tourTeams = Math.floor(tourTeams / 2);
         roundMatchMap.set(i, matches);
         roundObj.matches = roundMatchMap.get(i);
-        // let obj = {
-        //   roundNumber: i,
-        //   roundName: roundNames[i - 1],
-        //   tourId: "tourID",
-        //   formatId: "formatID",
-        //   matches: roundMatchMap.get(i),
-        // };
         roundsData.push(roundObj);
       } else if (tourTeams % 2 === 0) {
         let matches = Math.round(tourTeams / 2);
         tourTeams = Math.floor(tourTeams / 2);
         roundMatchMap.set(i, matches);
         roundObj.matches = roundMatchMap.get(i);
-        // let obj = {
-        //   roundNumber: i,
-        //   roundName: roundNames[i - 1],
-        //   tourId: "tourID",
-        //   formatId: "formatID",
-        //   matches: roundMatchMap.get(i),
-        // };
         roundsData.push(roundObj);
       }
-      //  else {
-      //   roundObj.matches = roundMatchMap.get(i);
-      //   // let obj = {
-      //   //   roundNumber: i,
-      //   //   roundName: roundNames[i - 1],
-      //   //   tourId: "tourID",
-      //   //   formatId: "formatID",
-      //   //   matches: roundMatchMap.get(i),
-      //   // };
-      //   roundsData.push(obj);
-      // }
-      // roundsData.push(roundObj);
-      // let newRound = new roundModel(roundObj);
-      // let saveRound = await newRound.save();
-      // RoundsIds.push(saveRound?._id?.toString());
     }
 
-    // let roundsDataArray = await roundModel.create([roundsData]);
-    // console.log("rounds data : ", roundsDataArray);
-    // let RoundsIds = [];
-    // RoundsIds = roundsDataArray?.map((round)=>round?._id?.toString());
-    // tournamentFormat?.rounds.push(RoundsIds);
-    console.log('roundsData : ',roundsData);
+    console.log("roundsData : ", roundsData);
     for (let roundData of roundsData) {
       // Create a new round
       const data = {
@@ -291,12 +206,10 @@ const createTournament = async (req, res) => {
         tournamentID: roundData.tournamentID,
         formatTypeID: roundData.formatTypeID,
       };
-      if(roundData.roundNumber === 1){
+      if (roundData.roundNumber === 1) {
         data.teams = teamsIds;
       }
       const round = await roundModel.create(data);
-      // await round.save();
-      // const round = await Round(data);
 
       // Create matches for the current round
       let roundMatches = Array.from(
@@ -307,11 +220,11 @@ const createTournament = async (req, res) => {
       let matchIds = [];
       for (let matchData of roundMatches) {
         const matchObj = {
-          name : "match #"+matchData,
-          tournamentID : roundData.tournamentID,
-          roundID : round?._id?.toString(),
-          formatID : roundData.formatTypeID,
-        }
+          name: "match #" + matchData,
+          tournamentID: roundData.tournamentID,
+          roundID: round?._id?.toString(),
+          formatID: roundData.formatTypeID,
+        };
         const match = await matchModel.create(matchObj);
         // await match.save();
         matchIds.push(match?._id?.toString());
@@ -320,20 +233,101 @@ const createTournament = async (req, res) => {
       await round.save();
 
       // Update the round with match IDs
-      // round.matches = matchIds;
-      // await round.save();
-
-      console.log(`Round '${round.name}' created with ${matchIds.length} matches.`);
       // console.log(
       //   `Round '${roundData.roundName}' created with ${matchIds.length} matches.`
       // );
     }
-    const allRounds = await roundModel.find({tournamentID : tourId});
-    console.log('all rounds : ' ,allRounds);
-    let roundsIds = allRounds?.map((round)=>round?._id?.toString());
+    // referencing next rounds matches into previous rounds matches to help the winner to move forward
+
+    const roundMatchIdsMap = new Map();
+    let formatId = tournamentFormat?._id?.toString();
+    let allRoundsData = await roundModel.find({
+      tournamentID: tourId,
+      formatTypeID: formatId,
+    });
+    console.log("all rounds : ", allRoundsData);
+    let rounds = Array.from(
+      new Array(allRoundsData.length),
+      (value, index) => index + 1
+    );
+    allRoundsData?.forEach((round) => {
+      const matchArray = round?.matches?.map((match) => match?.toString());
+      roundMatchIdsMap.set(round.roundNumber, matchArray);
+    });
+    console.log("round matches ids map : ", roundMatchIdsMap);
+    //     SuccessResponse.data = {
+    //         allRounds :allRounds,
+    //         roundMatchIdsMap : roundMatchIdsMap,
+    //         // allMatches : allMatches,
+    //     };
+    // return res.status(201).json(SuccessResponse);
+    for (let round of rounds) {
+      let roundMatches = await matchModel.find({
+        _id: roundMatchIdsMap.get(round),
+      });
+      console.log("round : ", round, " , matches : ", roundMatches);
+
+      // referencing next round or match in current match
+      let index = 0;
+      for (let i = 0; i < roundMatches.length; i += 2) {
+        if (roundMatchIdsMap.get(round + 1)) {
+          let nextRoundMatchesIds = roundMatchIdsMap.get(round + 1);
+          if (index < nextRoundMatchesIds.length) {
+            roundMatches[i].nextMatch = nextRoundMatchesIds[index];
+            await roundMatches[i].save();
+            if (i + 1 < roundMatches.length) {
+              if (roundMatches[i + 1]) {
+                roundMatches[i + 1].nextMatch = nextRoundMatchesIds[index];
+                await roundMatches[i + 1].save();
+              }
+            }
+          } else {
+            roundMatches[i].nextMatch = null; // no in round
+            await roundMatches[i].save();
+            if (i + 1 < roundMatches.length) {
+              if (roundMatches[i + 1]) {
+                roundMatches[i + 1].nextMatch = null;
+                await roundMatches[i + 1].save();
+              }
+            }
+          }
+          index += 1;
+        }
+      }
+    }
+    // arranging teams in matches based on fixingType and also handling if 1 team left in 1st round to happen match
+
+    const allRoundsAndMatches = await roundModel
+      .find({
+        tournamentID: tourId,
+        formatTypeID: formatId,
+      })
+      .populate(["matches"]);
+    console.log("all rounds : ", allRoundsAndMatches);
+    const arrangedTeams = await arrangingTeamsBasedOnFixingType(data.fixingType,allRoundsAndMatches);
+    let fixingType = "sequential";
+    await allRoundsAndMatches?.forEach(async (round) => {
+      let teams = round?.teams?.length;
+      if (teams % 2 !== 0) {
+        let nextMatchId = round?.matches[0]?.nextMatch.toString();
+        const lastIndex = round?.matches.length;
+        round.matches[0].nextMatch =
+          round?.matches[lastIndex - 1]?._id?.toString();
+        round.matches[lastIndex - 1].nextMatch = nextMatchId;
+        await round?.matches[0].save();
+        await round?.matches[lastIndex - 1].save();
+      }
+    });
+
+    // storing rounds ids in format model
+    const allRounds = await roundModel.find({ tournamentID: tourId }).populate('matches');
+    let roundsIds = allRounds?.map((round) => round?._id?.toString());
     tournamentFormat?.rounds.push(...roundsIds);
     tournamentFormat = await tournamentFormat.save();
-    console.log("updated tournament format after adding rounds ids : ", tournamentFormat);
+    console.log(
+      "updated tournament format after adding rounds ids : ",
+      tournamentFormat
+    );
 
     tournament.formatId = tournamentFormat?._id?.toString();
     tournament = await tournament.save();
@@ -360,8 +354,3 @@ module.exports = {
   createTournament,
 };
 
-// hello sir
-// i have the data of each document that i need to create
-// i want to create multiple entries or documents into same model in one call
-// and i want result of those documents also
-// how can i do that

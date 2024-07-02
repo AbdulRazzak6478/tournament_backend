@@ -69,7 +69,7 @@ async function createRoundsAndMatches(roundsData) {
 }
 let roundData = [];
 function calculateRoundsAndNames() {
-  let teams = 20
+  let teams = 9
   const totalRounds = Math.ceil(Math.log2(teams));
   const roundNames = [];
 
@@ -135,5 +135,5 @@ function calculateRoundsAndNames() {
 calculateRoundsAndNames();
 console.log('map matches : ',roundMatchMap);
 // console.log('rounds Data : ',roundData);
-createRoundsAndMatches(roundData);
+// createRoundsAndMatches(roundData);
 // console.log("odd : ", Math.floor(5/ 2));
