@@ -15,17 +15,65 @@ const updateMatchWinner = async (req, res) => {
     console.log("update winner data : ", data);
     const match = await MatchesModel.findById(id);
     console.log("before update match : ", match);
-    const currentRound = await roundModel.findById(match?.roundID);
     match.scoreA = data.scoreA;
     match.scoreB = data.scoreB;
     match.winner = data.winner;
     let updatedMatch = await match.save();
     console.log("after update match : ", updatedMatch);
-
+    let currentRound = await roundModel
+      .findById(updatedMatch?.roundID)
+      .populate("matches");
+    const exist = currentRound.winners?.filter(
+      (teamId) => teamId.toString() === updatedMatch?.winner.toString()
+    );
+    if (exist.length === 0) {
+      currentRound.winners.push(updatedMatch?.winner.toString());
+      currentRound = await currentRound.save();
+    }
     //scheduling next round matches
-    
 
-    // handling if it is final round
+    // const currentRound = await roundModel.findById(match?.roundID).populate("matches")
+    let nextRoundDetails = {};
+    let isRoundCompleted = true;
+    currentRound?.matches?.forEach((match) => {
+      if (!match?.winner) {
+        isRoundCompleted = false;
+      }
+    });
+    if (isRoundCompleted) {
+      currentRound.isCompleted = true;
+      currentRound = await currentRound.save();
+      // handling if it is final round or next out of round
+      nextRoundDetails = await roundModel
+        .findOne({
+          roundNumber: currentRound?.roundNumber + 1,
+          tournamentID: currentRound?.tournamentID,
+          formatTypeID: currentRound?.formatTypeID,
+        })
+        .populate("matches");
+      console.log("next round details : ", nextRoundDetails);
+      if (!nextRoundDetails) {
+        nextRoundDetails = nextRoundDetails;
+      } else {
+        let teams = nextRoundDetails?.teams;
+        let matches = nextRoundDetails?.matches;
+        if (teams % 2 !== 0) {
+          let nextMatchId = nextRoundDetails?.matches[0]?.nextMatch?.toString();
+          console.log("next match id ", nextMatchId);
+          const lastIndex = nextRoundDetails?.matches.length;
+          console.log(
+            "last match id : ",
+            nextRoundDetails?.matches[lastIndex - 1]?._id?.toString()
+          );
+          nextRoundDetails.matches[0].nextMatch =
+            nextRoundDetails?.matches[lastIndex - 1]?._id?.toString();
+          nextRoundDetails.matches[lastIndex - 1].nextMatch = nextMatchId;
+          await nextRoundDetails?.matches[0].save();
+          await nextRoundDetails?.matches[lastIndex - 1].save();
+        }
+      }
+    }
+
     if (updatedMatch?.nextMatch) {
       let nextMatchDetails = await MatchesModel.findById(
         updatedMatch?.nextMatch.toString()
@@ -41,7 +89,9 @@ const updateMatchWinner = async (req, res) => {
         nextMatchDetails.teamA = updatedMatch.winner;
       }
       nextMatchDetails = await nextMatchDetails.save();
-      let nextRound = await roundModel.findById(nextMatchDetails?.roundID);
+      let nextRound = await roundModel
+        .findById(nextMatchDetails?.roundID)
+        .populate("matches");
       if (currentRound?._id?.toString() !== nextRound?._id?.toString()) {
         let exist = nextRound.teams?.filter(
           (teamId) => teamId.toString() === updatedMatch?.winner.toString()
@@ -56,10 +106,11 @@ const updateMatchWinner = async (req, res) => {
         nextMatchDetails,
         nextRound,
       };
+    } else {
+      SuccessResponse.data = {
+        updatedMatch,
+      };
     }
-    SuccessResponse.data = {
-      updatedMatch,
-    };
     return res.status(201).json(SuccessResponse);
   } catch (error) {
     console.log("error in updateWinner controller");

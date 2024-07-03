@@ -30,41 +30,44 @@ const getRoundById = async (req, res) => {
 
     // scheduling next round matches if all matches completed
 
-    let nextRoundDetails = {};
-    let isRoundCompleted = true;
-    rounds?.matches?.forEach((match) => {
-      if (!match?.winner) {
-        isRoundCompleted = false;
-      }
-    });
-    if (isRoundCompleted) {
-      rounds.isCompleted = true;
-      rounds = await rounds.save();
-      nextRoundDetails = await roundModel.findOne({
-        roundNumber: rounds?.roundNumber + 1,
-        tournamentID: rounds?.tournamentID,
-        formatTypeID: rounds?.formatTypeID,
-      }).populate('matches');
-      console.log('next round details : ',nextRoundDetails);
-      if(nextRoundDetails.length){
-        
-      }
-      let teams = nextRoundDetails?.teams;
-      let matches = nextRoundDetails?.matches;
-      if (teams % 2 !== 0) {
-        let nextMatchId = nextRoundDetails?.matches[0]?.nextMatch.toString();
-        const lastIndex = nextRoundDetails?.matches.length;
-        nextRoundDetails.matches[0].nextMatch =
-        nextRoundDetails?.matches[lastIndex - 1]?._id?.toString();
-        nextRoundDetails.matches[lastIndex - 1].nextMatch = nextMatchId;
-        await nextRoundDetails?.matches[0].save();
-        await nextRoundDetails?.matches[lastIndex - 1].save();
-      }
-    }
+    // let nextRoundDetails = {};
+    // let isRoundCompleted = true;
+    // rounds?.matches?.forEach((match) => {
+    //   if (!match?.winner) {
+    //     isRoundCompleted = false;
+    //   }
+    // });
+    // if (isRoundCompleted) {
+    //   rounds.isCompleted = true;
+    //   rounds = await rounds.save();
+    //   nextRoundDetails = await roundModel.findOne({
+    //     roundNumber: rounds?.roundNumber + 1,
+    //     tournamentID: rounds?.tournamentID,
+    //     formatTypeID: rounds?.formatTypeID,
+    //   }).populate('matches');
+    //   console.log('next round details : ',nextRoundDetails);
+    //   if(!nextRoundDetails){
+    //     nextRoundDetails = nextRoundDetails
+    //   }else{
+    //     let teams = nextRoundDetails?.teams;
+    //     let matches = nextRoundDetails?.matches;
+    //     if (teams % 2 !== 0) {
+    //       let nextMatchId = nextRoundDetails?.matches[0]?.nextMatch?.toString();
+    //       console.log('next match id ',nextMatchId);
+    //       const lastIndex = nextRoundDetails?.matches.length;
+    //       console.log('last match id : ',nextRoundDetails?.matches[lastIndex - 1]?._id?.toString());
+    //       nextRoundDetails.matches[0].nextMatch =
+    //       nextRoundDetails?.matches[lastIndex - 1]?._id?.toString();
+    //       nextRoundDetails.matches[lastIndex - 1].nextMatch = nextMatchId;
+    //       await nextRoundDetails?.matches[0].save();
+    //       await nextRoundDetails?.matches[lastIndex - 1].save();
+    //     }
+    //   }
+    // }
 
     SuccessResponse.data = {
         rounds,
-        nextRoundDetails
+        // nextRoundDetails
     };
     return res.status(200).json(SuccessResponse);
   } catch (error) {
