@@ -2,16 +2,24 @@
 
 // tournamentSchema [icon: user, color: gray] {
 //     id ObjectId() 
-//     tournamentId string
+//     tournamentID string
+//     name  string
+//     mainCategoryID  ObjectId()
+//     mainCategoryName  
+//     subCategoryID  ObjectId()
+//     subCategoryName string
+//     sportName string
 //     typeFormat  string
-//     formatId ObjectId()
+//     formatID ObjectId()
 //     fixingType string
-//     gameType string
+//     tournamentType string
 //     rounds integer
 //     roundsNames names[]
+//     discription string
 //     teams Teams[{ObjectId()}]
 //     participents players[{ObjectId()}]
 //     players player[{ObjectId()}]
+//     venue  venueArray[ObjectId()]
 //   }
 //   knockoutFormat [icon: user, color: gray] {
 //     id ObjectId() 
@@ -45,6 +53,16 @@
 //     players Players[ObjectId()]
 //     tournamentId ObjectId()
 //   }
+//   venueSchema [icon: users, color: gray] {
+//     id ObjectId() 
+//     Name string
+//     email string
+//     phone string
+//     userMongoId ObjectId()
+//     members players[ObjectId()]
+//     players Players[ObjectId()]
+//     tournamentId ObjectId()
+//   }
 //   MatchSchema [icon: users, color: gray] {
 //     id ObjectId() 
 //     name string
@@ -55,7 +73,7 @@
 //     scoreA Number
 //     scoreB Number
 //     winner Team_Id ObjectId()
-  
+//     venueID  Venue_ID ObjrctId()
 //   }
   
 //   roundsSchema [icon: user, color: gray] {

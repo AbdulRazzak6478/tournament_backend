@@ -28,43 +28,6 @@ const getRoundById = async (req, res) => {
     const id = req.params.roundId;
     let rounds = await roundModel.findById(id).populate("matches");
 
-    // scheduling next round matches if all matches completed
-
-    // let nextRoundDetails = {};
-    // let isRoundCompleted = true;
-    // rounds?.matches?.forEach((match) => {
-    //   if (!match?.winner) {
-    //     isRoundCompleted = false;
-    //   }
-    // });
-    // if (isRoundCompleted) {
-    //   rounds.isCompleted = true;
-    //   rounds = await rounds.save();
-    //   nextRoundDetails = await roundModel.findOne({
-    //     roundNumber: rounds?.roundNumber + 1,
-    //     tournamentID: rounds?.tournamentID,
-    //     formatTypeID: rounds?.formatTypeID,
-    //   }).populate('matches');
-    //   console.log('next round details : ',nextRoundDetails);
-    //   if(!nextRoundDetails){
-    //     nextRoundDetails = nextRoundDetails
-    //   }else{
-    //     let teams = nextRoundDetails?.teams;
-    //     let matches = nextRoundDetails?.matches;
-    //     if (teams % 2 !== 0) {
-    //       let nextMatchId = nextRoundDetails?.matches[0]?.nextMatch?.toString();
-    //       console.log('next match id ',nextMatchId);
-    //       const lastIndex = nextRoundDetails?.matches.length;
-    //       console.log('last match id : ',nextRoundDetails?.matches[lastIndex - 1]?._id?.toString());
-    //       nextRoundDetails.matches[0].nextMatch =
-    //       nextRoundDetails?.matches[lastIndex - 1]?._id?.toString();
-    //       nextRoundDetails.matches[lastIndex - 1].nextMatch = nextMatchId;
-    //       await nextRoundDetails?.matches[0].save();
-    //       await nextRoundDetails?.matches[lastIndex - 1].save();
-    //     }
-    //   }
-    // }
-
     SuccessResponse.data = {
         rounds,
         // nextRoundDetails
