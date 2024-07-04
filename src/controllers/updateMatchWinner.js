@@ -55,7 +55,7 @@ const updateMatchWinner = async (req, res) => {
       if (!nextRoundDetails) {
         nextRoundDetails = nextRoundDetails;
       } else {
-        let teams = nextRoundDetails?.teams;
+        let teams = nextRoundDetails?.teams.length;
         let matches = nextRoundDetails?.matches;
         if (teams % 2 !== 0) {
           let nextMatchId = nextRoundDetails?.matches[0]?.nextMatch?.toString();

@@ -134,7 +134,7 @@ function calculateRoundsAndNames() {
   }
   // console.log("rounds names : ", roundNames);
 }
-calculateRoundsAndNames();
+// calculateRoundsAndNames();
 console.log('map matches : ',roundMatchMap);
 // console.log('rounds Data : ',roundData);
 // createRoundsAndMatches(roundData);
@@ -195,3 +195,34 @@ for (let i = 0; i < 9; i++) {
 }
 console.log("teams before arrangement : ", tourTeams);
 // const teams = arrangeTeamsBasedOnType(tourTeams);
+// ()=>{
+//   const session = await mongoose.startSession();
+//   try{
+//      session.startTransaction();
+
+//     // model1 created something in database
+//     //model2 created something in database
+
+//     // logic added
+//     // some operation happen 1
+//     // some operation happen 2
+//     throw new Error('error while creation of tournament')
+
+//     // some operation happen 3
+
+//     //model3 created something in database
+//     //model4 created something in database
+//     //model5 created something in database
+
+
+//     await session.commitTransaction();
+//     await session.endSession();
+//     return res
+//   }catch(error){
+
+//     await session.abortTransaction();
+//     await session.endSession();
+
+//     return res;
+//   }
+// }

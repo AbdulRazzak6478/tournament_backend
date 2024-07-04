@@ -19,7 +19,7 @@
 //     teams Teams[{ObjectId()}]
 //     participents players[{ObjectId()}]
 //     players player[{ObjectId()}]
-//     venue  venueArray[ObjectId()]
+//     venues  venueArray[ObjectId()]
 //   }
 //   knockoutFormat [icon: user, color: gray] {
 //     id ObjectId() 
@@ -55,13 +55,14 @@
 //   }
 //   venueSchema [icon: users, color: gray] {
 //     id ObjectId() 
-//     Name string
-//     email string
-//     phone string
-//     userMongoId ObjectId()
-//     members players[ObjectId()]
-//     players Players[ObjectId()]
 //     tournamentId ObjectId()
+//     venueName string
+//     ClubID ObjectId()
+//     location string
+//     arenaName string
+//     courts Number
+    
+//   //   arenaID ObjectId()
 //   }
 //   MatchSchema [icon: users, color: gray] {
 //     id ObjectId() 
@@ -74,6 +75,8 @@
 //     scoreB Number
 //     winner Team_Id ObjectId()
 //     venueID  Venue_ID ObjrctId()
+//     dateOfPlay Date()
+//     timing Date()
 //   }
   
 //   roundsSchema [icon: user, color: gray] {
@@ -93,11 +96,12 @@
 //     theme string
 //     show_hints boolean
 //   }
-//   tournamentSchema.formatId  > knockoutFormat
+//   tournamentSchema.formatID  > knockoutFormat
 //   tournamentSchema.teams  > teamsSchema
 //   tournamentSchema.players  > participentSchema
 //   tournamentSchema.participents  > participentSchema
-//   tournamentSchema.formatId  > knockoutFormat
+//   // tournamentSchema.formatId  > knockoutFormat
+//   tournamentSchema.venues  > venueSchema
 //   knockoutFormat.teams > teamsSchema
 //   knockoutFormat.roundsArr > roundsSchema
 //   roundsSchema.matches > MatchSchema
@@ -108,4 +112,5 @@
 //   // MatchSchema.formatId > knockoutFormat
 //   MatchSchema.teamB > teamsSchema
 //   MatchSchema.winner > teamsSchema
+//   MatchSchema.venueID > venueSchema
 //   // users.app_settings > userSettings
