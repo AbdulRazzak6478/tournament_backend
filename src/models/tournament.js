@@ -5,6 +5,10 @@ const tournamentSchema = new mongoose.Schema({
     tournamentID:{
         type: String,
     },
+    tournamentName : {
+        type : String,
+        default : null,
+    },
     formatId:{
         type: mongoose.Schema.Types.ObjectId,
         default : null,

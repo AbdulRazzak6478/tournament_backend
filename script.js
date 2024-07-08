@@ -190,8 +190,8 @@ const arrangeTeamsBasedOnType = (teams) => {
 };
 
 const tourTeams = [];
-for (let i = 0; i < 9; i++) {
-  tourTeams.push("Team #" + (i + 1));
+for (let i of 9) {
+  tourTeams.push("Team #" + (i));
 }
 console.log("teams before arrangement : ", tourTeams);
 // const teams = arrangeTeamsBasedOnType(tourTeams);
