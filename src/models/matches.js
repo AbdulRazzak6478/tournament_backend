@@ -27,6 +27,16 @@ const matchSchema = new mongoose.Schema({
         ref: "team",
         default : null
     },
+    matchA:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref: "match",
+        default : null
+    },
+    matchB:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref: "match",
+        default : null
+    },
     scoreA: {
         type: String,
         default : 0

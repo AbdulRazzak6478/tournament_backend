@@ -15,7 +15,6 @@ const tournamentSchema = new mongoose.Schema({
     },
     formatName:{
         type: String,
-        enum: ["knockout", "double knockout","round robin"],
     },
     fixingType:{
         type: String,

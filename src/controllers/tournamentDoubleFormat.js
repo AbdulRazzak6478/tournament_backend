@@ -1,13 +1,15 @@
 const { StatusCodes } = require("http-status-codes");
 const AppError = require("../utils/errors/app-error");
 const tournamentModel = require("../models/tournament");
-const teamModel = require("../models/team");
-const knockoutModel = require("../models/knockoutFormat");
+const tournamentTeamModel = require("../models/team");
+const doubleKnockoutModel = require("../models/doubleFormat");
 const roundModel = require("../models/Rounds");
 const matchModel = require("../models/matches");
+const tournamentPlayerModel = require("../models/participents");
 const { SuccessResponse, ErrorResponse } = require("../utils/common/index");
 const mongoose = require("mongoose");
 const { toInteger } = require("lodash");
+const _ = require("lodash");
 
 const getRoundsAndMatchesForBrackets = (participants) => {
   try {
@@ -205,12 +207,281 @@ const getRoundsAndMatchesForBrackets = (participants) => {
     //   console.log("winners rounds data  : ", roundData);
     console.log("losers rounds data  : ", loserBrackets);
     return {
+      totalRounds: totalRounds,
+      roundNames: roundNames,
       losersBrackets: loserBrackets,
       winnersBrackets: roundData,
     };
   } catch (error) {
     throw new Error(
       " => error in making rounds and matches for both winners and losers brackets  : => " +
+        error?.message
+    );
+  }
+};
+
+const createRoundsAndThereMatches = async (
+  tournamentID,
+  formatTypeID,
+  formatType,
+  participantsIds,
+  bracketRounds,
+  session
+) => {
+  try {
+    const roundsAndMatches = [];
+    for (let roundData of bracketRounds) {
+      // Create a new round
+      const data1 = {
+        roundNumber: roundData.roundNumber,
+        roundName: roundData.roundName,
+        tournamentID: tournamentID,
+        formatTypeID: formatTypeID,
+        brackets: roundData.brackets,
+        formatName: formatType,
+      };
+      if (roundData.roundNumber === 1 && roundData.brackets === "winners") {
+        data1.participants = participantsIds;
+      }
+      let round = await roundModel.create([data1], { session: session });
+      round = round[0];
+      // Create matches for the current round
+      let roundMatches = Array.from(
+        new Array(roundData.matches),
+        (value, index) => index + 1
+      );
+
+      // preparing matches data payload
+      let allMatches = [];
+      let matchIds = [];
+      for (let matchData of roundMatches) {
+        const str = round?.brackets === 'winners'? "K1" : "k2";
+        const matchObj = {
+          name: "Match #"+str+" R" + round?.roundNumber + " M" + matchData,
+          tournamentID: tournamentID,
+          roundID: round?._id?.toString(),
+          formatID: formatTypeID,
+        };
+        allMatches.push(matchObj);
+      }
+      const matches = await matchModel.create(allMatches, { session: session }); // creating matches
+
+      matchIds = matches?.map((match) => match?._id?.toString());
+      round?.matches.push(...matchIds); // storing matches ids
+      round = await round.save({ session });
+      roundsAndMatches.push(round);
+    }
+    console.log("rounds length : ", roundsAndMatches.length);
+    return roundsAndMatches;
+  } catch (error) {
+    throw new Error(
+      " => error in creating rounds and matches in double knockout : " +
+        error?.message
+    );
+  }
+};
+
+const referencingMatchesToNextMatches = async (
+  tournamentID,
+  formatTypeID,
+  bracket,
+  session
+) => {
+  try {
+    const roundMatchIdsMap = new Map();
+    // Get all rounds data and matches
+    let allRoundsData = await roundModel
+      .find({
+        tournamentID: tournamentID,
+        formatTypeID: formatTypeID,
+        brackets: bracket,
+      })
+      .populate("matches")
+      .session(session);
+    // console.log("all rounds : ", allRoundsData);
+    // return allRoundsData;
+    // Generating array upto rounds length to iterate
+    let rounds = Array.from(
+      new Array(allRoundsData.length),
+      (value, index) => index + 1
+    );
+    // saving the next rounds matches Ids into Map
+    allRoundsData?.forEach((round) => {
+      const matchArray = round?.matches?.map((match) => match?._id?.toString());
+      roundMatchIdsMap.set(round.roundNumber, matchArray);
+    });
+    console.log("round matches ids map : ", roundMatchIdsMap);
+
+    // iterating over the rounds and there matches to add reference of next rounds matches
+    for (let round of rounds) {
+      // let roundMatches = await matchModel
+      //   .find({
+      //     _id: roundMatchIdsMap.get(round),
+      //   })
+      //   .session(session);
+      let roundMatches = allRoundsData[round - 1].matches;
+      console.log("round : ", round, " , matches : ", roundMatches.length);
+
+      // referencing next round or match in current match
+      let index = 0;
+      for (let i = 0; i < roundMatches.length; i += 2) {
+        if (roundMatchIdsMap.get(round + 1)) {
+          let nextRoundMatchesIds = roundMatchIdsMap.get(round + 1);
+          if (index < nextRoundMatchesIds.length) {
+            // having next round match
+            roundMatches[i].nextMatch = nextRoundMatchesIds[index];
+            allRoundsData[round - 1].matches[i] = await roundMatches[i].save({
+              session,
+            });
+            if (i + 1 < roundMatches.length) {
+              if (roundMatches[i + 1]) {
+                roundMatches[i + 1].nextMatch = nextRoundMatchesIds[index];
+                allRoundsData[round - 1].matches[i + 1] = await roundMatches[
+                  i + 1
+                ].save({ session });
+              }
+            }
+          } else {
+            // no next round match
+            roundMatches[i].nextMatch = null; // no next round match
+            allRoundsData[round - 1].matches[i] = await roundMatches[i].save({
+              session,
+            });
+            if (i + 1 < roundMatches.length) {
+              if (roundMatches[i + 1]) {
+                roundMatches[i + 1].nextMatch = null; // no next round match
+                allRoundsData[round - 1].matches[i + 1] = await roundMatches[
+                  i + 1
+                ].save({ session });
+              }
+            }
+          }
+          index += 1; // incrementing to get next match id index
+        }
+      }
+    }
+
+    // matches placeholder making
+    // 1. start allocating placeholder from next round
+    for (let i = 2; i <= rounds.length; i++) {
+      console.log(
+        "previous rounds matches ids  : ",
+        roundMatchIdsMap.get(i - 1)
+      );
+      let prevRoundMatchesIds = roundMatchIdsMap.get(i - 1);
+      let currentRoundMatches = allRoundsData[i - 1].matches;
+      console.log(
+        "current round matches length : ",
+        currentRoundMatches.length
+      );
+      if (prevRoundMatchesIds.length % 2 !== 0) {
+        const matchA = prevRoundMatchesIds[prevRoundMatchesIds.length - 1];
+        const matchB = prevRoundMatchesIds[1];
+        allRoundsData[i - 1].matches[0].matchA = matchA;
+        allRoundsData[i - 1].matches[0].matchB = matchB;
+        allRoundsData[i - 1].matches[0] = await allRoundsData[
+          i - 1
+        ].matches[0].save({ session });
+        let index = 2;
+        for (let match = 1; match < currentRoundMatches.length; match++) {
+          // matchData.matchA = prevRoundMatchesIds[]
+          if (
+            index !== prevRoundMatchesIds.length - 1 &&
+            index < prevRoundMatchesIds.length
+          ) {
+            currentRoundMatches[match].matchA = prevRoundMatchesIds[index];
+            if (index + 1 < prevRoundMatchesIds.length - 1) {
+              currentRoundMatches[match].matchB =
+                prevRoundMatchesIds[index + 1];
+              index = index + 2;
+            } else {
+              index++;
+            }
+          }
+          currentRoundMatches[match] = await currentRoundMatches[match].save({
+            session,
+          });
+        }
+        console.log("matchA : " + matchA + ", matchB : " + matchB);
+      } else {
+        // const matchA = prevRoundMatchesIds[0];
+        // const matchB = prevRoundMatchesIds[1];
+        let index = 0;
+        for (let match = 0; match < currentRoundMatches.length; match++) {
+          if (index < prevRoundMatchesIds.length) {
+            currentRoundMatches[match].matchA = prevRoundMatchesIds[index];
+            if (index + 1 < prevRoundMatchesIds.length) {
+              currentRoundMatches[match].matchB =
+                prevRoundMatchesIds[index + 1];
+              index = index + 2;
+            } else {
+              index++;
+            }
+          }
+          currentRoundMatches[match] = await currentRoundMatches[match].save({
+            session,
+          });
+        }
+        // console.log("matchA : " + matchA + ", matchB : " + matchB);
+      }
+    }
+    console.log("hello", rounds);
+    return allRoundsData;
+  } catch (error) {
+    throw new Error(
+      " => error in referencing next matches to previous : " + error?.message
+    );
+  }
+};
+
+const assigningLosersIntoLosersBracket = async (
+  winnersBracket,
+  losersBracket,
+  session
+) => {
+  try {
+    let round = 0;
+    for (let loserRound of losersBracket) {
+      console.log(
+        "loser round " +
+          loserRound.brackets +
+          ",and matches : " +
+          loserRound.matches.length
+      );
+      let index = 0;
+      for (let match = 0; match < loserRound.matches.length; match++) {
+        if (index < winnersBracket[round].matches.length) {
+          if (!loserRound.matches[match].matchA) {
+            loserRound.matches[match].matchA =
+              winnersBracket[round].matches[index]?._id?.toString();
+            index++;
+            // if(index + 1 < winnersBracket[round].matches.length){
+            //   if(!loserRound.matches[match].matchB){
+            //     loserRound.matches[match].matchB = winnersBracket[round].matches[index+1]?._id?.toString();
+            //   }
+            // }
+          }
+          if (
+            !loserRound.matches[match].matchB &&
+            index < winnersBracket[round].matches.length
+          ) {
+            loserRound.matches[match].matchB =
+              winnersBracket[round].matches[index]?._id?.toString();
+            index++;
+          }
+          loserRound.matches[match] = await loserRound.matches[match].save({
+            session,
+          });
+        }
+      }
+      round++;
+    }
+
+    console.log("losers Rounds length : ", losersBracket.length);
+    return losersBracket;
+  } catch (error) {
+    throw new Error(
+      " => getting error in assigning losers in loser bracket : " +
         error?.message
     );
   }
@@ -284,51 +555,195 @@ const createDoubleEliminationTournament = async (req, res) => {
       formatType: req.body.formatType,
       fixingType: req.body.fixingType,
       gameType: req.body.gameType,
-      teams: +req.body.totalTeams,
+      participants: +req.body.participants,
     };
     console.log("data payload : ", data);
     // Getting number of rounds possible in tournament
-    
+    let roundsBrackets = getRoundsAndMatchesForBrackets(data.participants);
+
     // tournament data Payload
-    const tournamentData = {
-        tournamentID: random,
-        formatName: data.formatType,
-        fixingType: data.fixingType,
-        gameType: data.gameType,
-        totalRounds: totalRounds,
-        roundNames: roundNames,
-        totalTeams: data.teams,
-      };
-  
-      console.log("tour data : ", tournamentData);
-      let tournament = await tournamentModel.create([tournamentData], {
-        session: session,
-      });
-      console.log("tournament created : ", tournament);
-      tournament = tournament[0];
-  
-      // creating Teams array to iterate
-      let newArray = Array.from(
-        new Array(data.teams),
-        (value, index) => index + 1
-      );
-    
+    // const tournamentData = {
+    //   tournamentID: random,
+    //   formatName: data.formatType,
+    //   fixingType: data.fixingType,
+    //   gameType: data.gameType,
+    //   totalRounds: roundsBrackets?.totalRounds,
+    //   roundNames: roundsBrackets?.roundNames,
+    //   // totalTeams: data.teams,
+    // };
 
-    let roundsBrackets = getRoundsAndMatchesForBrackets(data.teams);
+    // if (data.gameType === "team") {
+    //   tournamentData.totalTeams = data.participants;
+    // }
+    // if (data.gameType === "individual") {
+    //   tournamentData.totalParticipants = data.participants;
+    // }
 
-    let losersBrackets = roundsBrackets.losersBrackets?.map((round)=>{
-        return {
-            roundNumber : round?.round,
-            roundName : round?.roundName,
-            matches : round?.matches,
-            brackets : round?.brackets,
-        }
-    });
-    let winnersBrackets = roundsBrackets.winnersBrackets;
+    // console.log("tour data : ", tournamentData);
+    // let tournament = await tournamentModel.create([tournamentData], {
+    //   session: session,
+    // });
+    // if (_.isEmpty(tournament)) {
+    //   throw new Error(" not able to create tournament");
+    // }
+    // console.log("tournament created : ", tournament);
+    // tournament = tournament[0];
+
+    // let participantsIds = [];
+    // const tourId = tournament?._id?.toString();
+    // if (data.gameType === "team") {
+    //   let teamsObjData = [];
+    //   for (let i = 1; i <= data.participants; i++) {
+    //     let obj = {
+    //       tournamentID: tourId,
+    //       teamNumber: i,
+    //       sportName: data.sport,
+    //       name: "Team #" + i,
+    //     };
+    //     teamsObjData.push(obj);
+    //   }
+
+    //   // creating teams in one time only and passing session into it
+
+    //   const teams = await tournamentTeamModel.create([...teamsObjData], {
+    //     session: session,
+    //   });
+    //   let teamsIds = teams?.map((team) => team?._id?.toString());
+    //   console.log("teams ids : ", teamsIds);
+    //   // if we have team ids storing and saving into tournament model
+    //   if (teamsIds.length > 0) {
+    //     tournament.teams = teamsIds;
+    //     tournament = await tournament.save({ session });
+    //   }
+    //   participantsIds = teamsIds;
+    // }
+
+    // if (data.gameType === "individual") {
+    //   let playersObjData = [];
+    //   for (let i = 1; i <= data.participants; i++) {
+    //     let obj = {
+    //       // tournamentID: tourId,
+    //       // playerNumber: i,
+    //       // sportName: data.sport,
+    //       name: "Player #" + i,
+    //     };
+    //     playersObjData.push(obj);
+    //   }
+
+    //   // creating players in one time only and passing session into it
+
+    //   const players = await tournamentPlayerModel.create([...playersObjData], {
+    //     session: session,
+    //   });
+    //   let playersIds = players?.map((player) => player?._id?.toString());
+    //   console.log("players ids : ", playersIds);
+    //   // if we have players ids storing and saving into tournament model
+    //   if (playersIds.length > 0) {
+    //     tournament.participants = playersIds;
+    //     tournament = await tournament.save({ session });
+    //   }
+    //   participantsIds = playersIds;
+    // }
+
+    // // formatData Payload
+    // const totalWinnersRounds = roundsBrackets.totalRounds;
+    // const totalLosersRounds = roundsBrackets?.losersBrackets.length;
+    // const winnersRoundsNames = roundsBrackets?.roundNames;
+    // const losersRoundsNames = roundsBrackets?.losersBrackets?.map(
+    //   (round) => round?.roundName
+    // );
+    // const formatData = {
+    //   tournamentID: tournament?._id?.toString(),
+    //   formatType: data.formatType,
+    //   fixingType: data.fixingType,
+    //   gameType: data.gameType,
+    //   totalWinnersRounds,
+    //   totalLosersRounds,
+    //   winnersRoundsNames,
+    //   losersRoundsNames,
+    //   finalRoundName: "Final",
+    //   totalTeams: data.participants,
+    //   // totalParticipants,
+    //   teams: participantsIds,
+    //   //   participants,
+    // };
+    // console.log("double format data : ", formatData);
+    // // creating tournament format
+    // let tournamentFormat = await doubleKnockoutModel.create([formatData], {
+    //   session: session,
+    // });
+    // console.log("tournament format created: ", tournamentFormat);
+    // tournamentFormat = tournamentFormat[0];
+
+    // let losersBrackets = roundsBrackets.losersBrackets?.map((round) => {
+    //   return {
+    //     roundNumber: round?.round,
+    //     roundName: round?.roundName,
+    //     matches: round?.matches,
+    //     brackets: round?.brackets,
+    //   };
+    // });
+    // let winnersBrackets = roundsBrackets.winnersBrackets;
+
+    // // creating rounds and matches
+    // // 1. creating rounds and matches for winner brackets
+
+    // // Iterating over rounds data and creating rounds and matches respective to rounds and storing them
+
+    // let tournamentID = tournament?._id?.toString();
+    // let formatTypeID = tournamentFormat?._id?.toString();
+
+    // let winnersRoundsAndMatches = await createRoundsAndThereMatches(
+    //   tournamentID,
+    //   formatTypeID,
+    //   data.formatType,
+    //   participantsIds,
+    //   winnersBrackets,
+    //   session
+    // );
+    // let losersRoundsAndMatches = await createRoundsAndThereMatches(
+    //   tournamentID,
+    //   formatTypeID,
+    //   data.formatType,
+    //   participantsIds,
+    //   losersBrackets,
+    //   session
+    // );
+
+    // referencing next rounds matches into previous rounds matches to help the winner to move forward
+    let tournamentID = "668e3f0bac1e3db0418e870c";
+    let formatTypeID = "668e3f0bac1e3db0418e871f";
+    let winnersRoundsReferences = await referencingMatchesToNextMatches(
+      tournamentID,
+      formatTypeID,
+      "winners",
+      session
+    );
+    let losersRoundsReferences = await referencingMatchesToNextMatches(
+      tournamentID,
+      formatTypeID,
+      "losers",
+      session
+    );
+
+    // assigning losers into losers bracket
+
+    losersRoundsReferences = await assigningLosersIntoLosersBracket(
+      winnersRoundsReferences,
+      losersRoundsReferences,
+      session
+    );
 
     SuccessResponse.data = {
-      losersBrackets: losersBrackets,
-      winnersBrackets: winnersBrackets,
+      // tournament: tournament,
+      // FormData: formatData,
+      // tournamentFormat,
+      // winnersRoundsAndMatches,
+      // losersRoundsAndMatches,
+      // losersBrackets: losersBrackets,
+      // winnersBrackets: winnersBrackets,
+      winnersRoundsReferences,
+      losersRoundsReferences,
     };
     await session.commitTransaction();
     await session.endSession();

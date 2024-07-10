@@ -8,7 +8,10 @@ const roundSchema = new mongoose.Schema({
     },
     formatTypeID:{
         type:mongoose.Schema.Types.ObjectId,
-        ref: "knockoutFormat"
+        default : null,
+    },
+    formatName : {
+        type : String,
     },
     fixingType:{
         type: String,
@@ -24,9 +27,13 @@ const roundSchema = new mongoose.Schema({
     roundName:{
         type: String,
     },
-    teams:[{
+    brackets : {
+        type : String,
+        default : 'winners',
+    },
+    participants:[{
         type:mongoose.Schema.Types.ObjectId,
-        ref: "team"
+        default : null,
     }],
     matches:[{
         type:mongoose.Schema.Types.ObjectId,
