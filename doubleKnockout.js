@@ -2,7 +2,8 @@ const { toInteger } = require("lodash");
 
 let roundData = [];
 function calculateRoundsAndNames() {
-  let teams = 64;
+  // 6,
+  let teams = 12;
   const totalRounds = Math.ceil(Math.log2(teams));
   const roundNames = [];
 

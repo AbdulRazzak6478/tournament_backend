@@ -76,7 +76,7 @@ const createTournament = async (req, res) => {
       formatType: req.body.formatType,
       fixingType: req.body.fixingType,
       gameType: req.body.gameType,
-      teams: +req.body.totalTeams,
+      teams: +req.body.participants,
     };
     console.log("data payload : ", data);
     // Getting number of rounds possible in tournament
@@ -257,6 +257,7 @@ const createTournament = async (req, res) => {
         tournamentID: tourId,
         formatTypeID: formatId,
       })
+      .populate("matches")
       .session(session);
     console.log("all rounds : ", allRoundsData);
     // Generating array upto rounds length to iterate
@@ -266,18 +267,57 @@ const createTournament = async (req, res) => {
     );
     // saving the next rounds matches Ids into Map
     allRoundsData?.forEach((round) => {
-      const matchArray = round?.matches?.map((match) => match?.toString());
+      const matchArray = round?.matches?.map((match) => match?._id?.toString());
       roundMatchIdsMap.set(round.roundNumber, matchArray);
     });
     console.log("round matches ids map : ", roundMatchIdsMap);
 
     // iterating over the rounds and there matches to add reference of next rounds matches
+    // for (let round of rounds) {
+    //   let roundMatches = await matchModel
+    //     .find({
+    //       _id: roundMatchIdsMap.get(round),
+    //     })
+    //     .session(session);
+    //   console.log("round : ", round, " , matches : ", roundMatches.length);
+
+    //   // referencing next round or match in current match
+    //   let index = 0;
+    //   for (let i = 0; i < roundMatches.length; i += 2) {
+    //     if (roundMatchIdsMap.get(round + 1)) {
+    //       let nextRoundMatchesIds = roundMatchIdsMap.get(round + 1);
+    //       if (index < nextRoundMatchesIds.length) {
+    //         // having next round match
+    //         roundMatches[i].nextMatch = nextRoundMatchesIds[index];
+    //         await roundMatches[i].save({ session });
+    //         if (i + 1 < roundMatches.length) {
+    //           if (roundMatches[i + 1]) {
+    //             roundMatches[i + 1].nextMatch = nextRoundMatchesIds[index];
+    //             await roundMatches[i + 1].save({ session });
+    //           }
+    //         }
+    //       } else {
+    //         // no next round match
+    //         roundMatches[i].nextMatch = null; // no next round match
+    //         await roundMatches[i].save({ session });
+    //         if (i + 1 < roundMatches.length) {
+    //           if (roundMatches[i + 1]) {
+    //             roundMatches[i + 1].nextMatch = null; // no next round match
+    //             await roundMatches[i + 1].save({ session });
+    //           }
+    //         }
+    //       }
+    //       index += 1; // incrementing to get next match id index
+    //     }
+    //   }
+    // }
     for (let round of rounds) {
-      let roundMatches = await matchModel
-        .find({
-          _id: roundMatchIdsMap.get(round),
-        })
-        .session(session);
+      // let roundMatches = await matchModel
+      //   .find({
+      //     _id: roundMatchIdsMap.get(round),
+      //   })
+      //   .session(session);
+      let roundMatches = allRoundsData[round - 1].matches;
       console.log("round : ", round, " , matches : ", roundMatches.length);
 
       // referencing next round or match in current match
@@ -288,25 +328,94 @@ const createTournament = async (req, res) => {
           if (index < nextRoundMatchesIds.length) {
             // having next round match
             roundMatches[i].nextMatch = nextRoundMatchesIds[index];
-            await roundMatches[i].save({ session });
+            allRoundsData[round - 1].matches[i] = await roundMatches[i].save({
+              session,
+            });
             if (i + 1 < roundMatches.length) {
               if (roundMatches[i + 1]) {
                 roundMatches[i + 1].nextMatch = nextRoundMatchesIds[index];
-                await roundMatches[i + 1].save({ session });
+                allRoundsData[round - 1].matches[i + 1] = await roundMatches[
+                  i + 1
+                ].save({ session });
               }
             }
           } else {
             // no next round match
             roundMatches[i].nextMatch = null; // no next round match
-            await roundMatches[i].save({ session });
+            allRoundsData[round - 1].matches[i] = await roundMatches[i].save({
+              session,
+            });
             if (i + 1 < roundMatches.length) {
               if (roundMatches[i + 1]) {
                 roundMatches[i + 1].nextMatch = null; // no next round match
-                await roundMatches[i + 1].save({ session });
+                allRoundsData[round - 1].matches[i + 1] = await roundMatches[
+                  i + 1
+                ].save({ session });
               }
             }
           }
           index += 1; // incrementing to get next match id index
+        }
+      }
+    }
+
+    // matches placeholder making
+    // 1. start allocating placeholder from next round
+    for (let i = 2; i <= rounds.length; i++) {
+      console.log(
+        "previous rounds matches ids  : ",
+        roundMatchIdsMap.get(i - 1)
+      );
+      let prevRoundMatchesIds = roundMatchIdsMap.get(i - 1);
+      let currentRoundMatches = allRoundsData[i - 1].matches;
+      console.log(
+        "current round matches length : ",
+        currentRoundMatches.length
+      );
+      if (prevRoundMatchesIds.length % 2 !== 0) {
+        const matchA = prevRoundMatchesIds[prevRoundMatchesIds.length - 1];
+        const matchB = prevRoundMatchesIds[1];
+        allRoundsData[i - 1].matches[0].matchA = matchA;
+        allRoundsData[i - 1].matches[0].matchB = matchB;
+        allRoundsData[i - 1].matches[0] = await allRoundsData[
+          i - 1
+        ].matches[0].save({ session });
+        let index = 2;
+        for (let match = 1; match < currentRoundMatches.length; match++) {
+          if (
+            index !== prevRoundMatchesIds.length - 1 &&
+            index < prevRoundMatchesIds.length
+          ) {
+            currentRoundMatches[match].matchA = prevRoundMatchesIds[index];
+            if (index + 1 < prevRoundMatchesIds.length - 1) {
+              currentRoundMatches[match].matchB =
+                prevRoundMatchesIds[index + 1];
+              index = index + 2;
+            } else {
+              index++;
+            }
+          }
+          currentRoundMatches[match] = await currentRoundMatches[match].save({
+            session,
+          });
+        }
+        console.log("matchA : " + matchA + ", matchB : " + matchB);
+      } else {
+        let index = 0;
+        for (let match = 0; match < currentRoundMatches.length; match++) {
+          if (index < prevRoundMatchesIds.length) {
+            currentRoundMatches[match].matchA = prevRoundMatchesIds[index];
+            if (index + 1 < prevRoundMatchesIds.length) {
+              currentRoundMatches[match].matchB =
+                prevRoundMatchesIds[index + 1];
+              index = index + 2;
+            } else {
+              index++;
+            }
+          }
+          currentRoundMatches[match] = await currentRoundMatches[match].save({
+            session,
+          });
         }
       }
     }
@@ -337,7 +446,7 @@ const createTournament = async (req, res) => {
       let teams = round?.teams?.length;
       // handling ODD team match reference for round one
       if (teams % 2 !== 0) {
-        let nextMatchId = round?.matches[0]?.nextMatch.toString();
+        let nextMatchId = round?.matches[0]?.nextMatch?.toString();
         const lastIndex = round?.matches.length;
         round.matches[0].nextMatch =
           round?.matches[lastIndex - 1]?._id?.toString();

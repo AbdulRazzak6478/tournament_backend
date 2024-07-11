@@ -10,6 +10,7 @@ const { SuccessResponse, ErrorResponse } = require("../utils/common/index");
 const mongoose = require("mongoose");
 const { toInteger } = require("lodash");
 const _ = require("lodash");
+const tournament = require("../models/tournament");
 
 const getRoundsAndMatchesForBrackets = (participants) => {
   try {
@@ -255,9 +256,9 @@ const createRoundsAndThereMatches = async (
       let allMatches = [];
       let matchIds = [];
       for (let matchData of roundMatches) {
-        const str = round?.brackets === 'winners'? "K1" : "k2";
+        const str = round?.brackets === "winners" ? "K1" : "k2";
         const matchObj = {
-          name: "Match #"+str+" R" + round?.roundNumber + " M" + matchData,
+          name: "Match #" + str + " R" + round?.roundNumber + " M" + matchData,
           tournamentID: tournamentID,
           roundID: round?._id?.toString(),
           formatID: formatTypeID,
@@ -384,7 +385,6 @@ const referencingMatchesToNextMatches = async (
         ].matches[0].save({ session });
         let index = 2;
         for (let match = 1; match < currentRoundMatches.length; match++) {
-          // matchData.matchA = prevRoundMatchesIds[]
           if (
             index !== prevRoundMatchesIds.length - 1 &&
             index < prevRoundMatchesIds.length
@@ -404,8 +404,6 @@ const referencingMatchesToNextMatches = async (
         }
         console.log("matchA : " + matchA + ", matchB : " + matchB);
       } else {
-        // const matchA = prevRoundMatchesIds[0];
-        // const matchB = prevRoundMatchesIds[1];
         let index = 0;
         for (let match = 0; match < currentRoundMatches.length; match++) {
           if (index < prevRoundMatchesIds.length) {
@@ -422,7 +420,6 @@ const referencingMatchesToNextMatches = async (
             session,
           });
         }
-        // console.log("matchA : " + matchA + ", matchB : " + matchB);
       }
     }
     console.log("hello", rounds);
@@ -455,11 +452,6 @@ const assigningLosersIntoLosersBracket = async (
             loserRound.matches[match].matchA =
               winnersBracket[round].matches[index]?._id?.toString();
             index++;
-            // if(index + 1 < winnersBracket[round].matches.length){
-            //   if(!loserRound.matches[match].matchB){
-            //     loserRound.matches[match].matchB = winnersBracket[round].matches[index+1]?._id?.toString();
-            //   }
-            // }
           }
           if (
             !loserRound.matches[match].matchB &&
@@ -484,6 +476,46 @@ const assigningLosersIntoLosersBracket = async (
       " => getting error in assigning losers in loser bracket : " +
         error?.message
     );
+  }
+};
+
+const creatingFinalBracketRoundMatch = async (data, session) => {
+  try {
+    const roundObj = {
+      roundNumber: 1,
+      roundName: "Final",
+      tournamentID: data.tournamentID,
+      formatTypeID: data.formatTypeID,
+      brackets: "Final Bracket",
+      formatName: data.formatType,
+      gameType: data.gameType,
+    };
+    let finalBracket = await roundModel.create([roundObj], { session });
+    if (_.isEmpty(finalBracket)) {
+      throw new Error(" not able to create round for final bracket ");
+    }
+    finalBracket = finalBracket[0];
+    const str = "K3";
+    const matchObj = {
+      name: "Match #" + str + "R" + finalBracket?.roundNumber + "M" + 1,
+      tournamentID: data.tournamentID,
+      roundID: finalBracket?._id?.toString(),
+      formatID: data.formatTypeID,
+    };
+    let finalMatch = await matchModel.create([matchObj], { session });
+
+    if (_.isEmpty(finalMatch)) {
+      throw new Error(" not able to create final bracket round match");
+    }
+    finalMatch = finalMatch[0];
+    finalBracket.matches = [finalMatch?._id?.toString()];
+    finalBracket = await finalBracket.save({ session });
+    return {
+      finalBracket,
+      finalMatch,
+    };
+  } catch (error) {
+    throw new Error(" => error in creating final bracket : " + error?.message);
   }
 };
 
@@ -562,157 +594,157 @@ const createDoubleEliminationTournament = async (req, res) => {
     let roundsBrackets = getRoundsAndMatchesForBrackets(data.participants);
 
     // tournament data Payload
-    // const tournamentData = {
-    //   tournamentID: random,
-    //   formatName: data.formatType,
-    //   fixingType: data.fixingType,
-    //   gameType: data.gameType,
-    //   totalRounds: roundsBrackets?.totalRounds,
-    //   roundNames: roundsBrackets?.roundNames,
-    //   // totalTeams: data.teams,
-    // };
+    const tournamentData = {
+      tournamentID: random,
+      formatName: data.formatType,
+      fixingType: data.fixingType,
+      gameType: data.gameType,
+      totalRounds: roundsBrackets?.totalRounds,
+      roundNames: roundsBrackets?.roundNames,
+      // totalTeams: data.teams,
+    };
 
-    // if (data.gameType === "team") {
-    //   tournamentData.totalTeams = data.participants;
-    // }
-    // if (data.gameType === "individual") {
-    //   tournamentData.totalParticipants = data.participants;
-    // }
+    if (data.gameType === "team") {
+      tournamentData.totalTeams = data.participants;
+    }
+    if (data.gameType === "individual") {
+      tournamentData.totalParticipants = data.participants;
+    }
 
-    // console.log("tour data : ", tournamentData);
-    // let tournament = await tournamentModel.create([tournamentData], {
-    //   session: session,
-    // });
-    // if (_.isEmpty(tournament)) {
-    //   throw new Error(" not able to create tournament");
-    // }
-    // console.log("tournament created : ", tournament);
-    // tournament = tournament[0];
+    console.log("tour data : ", tournamentData);
+    let tournament = await tournamentModel.create([tournamentData], {
+      session: session,
+    });
+    if (_.isEmpty(tournament)) {
+      throw new Error(" not able to create tournament");
+    }
+    console.log("tournament created : ", tournament);
+    tournament = tournament[0];
 
-    // let participantsIds = [];
-    // const tourId = tournament?._id?.toString();
-    // if (data.gameType === "team") {
-    //   let teamsObjData = [];
-    //   for (let i = 1; i <= data.participants; i++) {
-    //     let obj = {
-    //       tournamentID: tourId,
-    //       teamNumber: i,
-    //       sportName: data.sport,
-    //       name: "Team #" + i,
-    //     };
-    //     teamsObjData.push(obj);
-    //   }
+    let participantsIds = [];
+    const tourId = tournament?._id?.toString();
+    if (data.gameType === "team") {
+      let teamsObjData = [];
+      for (let i = 1; i <= data.participants; i++) {
+        let obj = {
+          tournamentID: tourId,
+          teamNumber: i,
+          sportName: data.sport,
+          name: "Team #" + i,
+        };
+        teamsObjData.push(obj);
+      }
 
-    //   // creating teams in one time only and passing session into it
+      // creating teams in one time only and passing session into it
 
-    //   const teams = await tournamentTeamModel.create([...teamsObjData], {
-    //     session: session,
-    //   });
-    //   let teamsIds = teams?.map((team) => team?._id?.toString());
-    //   console.log("teams ids : ", teamsIds);
-    //   // if we have team ids storing and saving into tournament model
-    //   if (teamsIds.length > 0) {
-    //     tournament.teams = teamsIds;
-    //     tournament = await tournament.save({ session });
-    //   }
-    //   participantsIds = teamsIds;
-    // }
+      const teams = await tournamentTeamModel.create([...teamsObjData], {
+        session: session,
+      });
+      let teamsIds = teams?.map((team) => team?._id?.toString());
+      console.log("teams ids : ", teamsIds);
+      // if we have team ids storing and saving into tournament model
+      if (teamsIds.length > 0) {
+        tournament.teams = teamsIds;
+        tournament = await tournament.save({ session });
+      }
+      participantsIds = teamsIds;
+    }
 
-    // if (data.gameType === "individual") {
-    //   let playersObjData = [];
-    //   for (let i = 1; i <= data.participants; i++) {
-    //     let obj = {
-    //       // tournamentID: tourId,
-    //       // playerNumber: i,
-    //       // sportName: data.sport,
-    //       name: "Player #" + i,
-    //     };
-    //     playersObjData.push(obj);
-    //   }
+    if (data.gameType === "individual") {
+      let playersObjData = [];
+      for (let i = 1; i <= data.participants; i++) {
+        let obj = {
+          // tournamentID: tourId,
+          // playerNumber: i,
+          // sportName: data.sport,
+          name: "Player #" + i,
+        };
+        playersObjData.push(obj);
+      }
 
-    //   // creating players in one time only and passing session into it
+      // creating players in one time only and passing session into it
 
-    //   const players = await tournamentPlayerModel.create([...playersObjData], {
-    //     session: session,
-    //   });
-    //   let playersIds = players?.map((player) => player?._id?.toString());
-    //   console.log("players ids : ", playersIds);
-    //   // if we have players ids storing and saving into tournament model
-    //   if (playersIds.length > 0) {
-    //     tournament.participants = playersIds;
-    //     tournament = await tournament.save({ session });
-    //   }
-    //   participantsIds = playersIds;
-    // }
+      const players = await tournamentPlayerModel.create([...playersObjData], {
+        session: session,
+      });
+      let playersIds = players?.map((player) => player?._id?.toString());
+      console.log("players ids : ", playersIds);
+      // if we have players ids storing and saving into tournament model
+      if (playersIds.length > 0) {
+        tournament.participants = playersIds;
+        tournament = await tournament.save({ session });
+      }
+      participantsIds = playersIds;
+    }
 
-    // // formatData Payload
-    // const totalWinnersRounds = roundsBrackets.totalRounds;
-    // const totalLosersRounds = roundsBrackets?.losersBrackets.length;
-    // const winnersRoundsNames = roundsBrackets?.roundNames;
-    // const losersRoundsNames = roundsBrackets?.losersBrackets?.map(
-    //   (round) => round?.roundName
-    // );
-    // const formatData = {
-    //   tournamentID: tournament?._id?.toString(),
-    //   formatType: data.formatType,
-    //   fixingType: data.fixingType,
-    //   gameType: data.gameType,
-    //   totalWinnersRounds,
-    //   totalLosersRounds,
-    //   winnersRoundsNames,
-    //   losersRoundsNames,
-    //   finalRoundName: "Final",
-    //   totalTeams: data.participants,
-    //   // totalParticipants,
-    //   teams: participantsIds,
-    //   //   participants,
-    // };
-    // console.log("double format data : ", formatData);
-    // // creating tournament format
-    // let tournamentFormat = await doubleKnockoutModel.create([formatData], {
-    //   session: session,
-    // });
-    // console.log("tournament format created: ", tournamentFormat);
-    // tournamentFormat = tournamentFormat[0];
+    // formatData Payload
+    const totalWinnersRounds = roundsBrackets.totalRounds;
+    const totalLosersRounds = roundsBrackets?.losersBrackets.length;
+    const winnersRoundsNames = roundsBrackets?.roundNames;
+    const losersRoundsNames = roundsBrackets?.losersBrackets?.map(
+      (round) => round?.roundName
+    );
+    const formatData = {
+      tournamentID: tournament?._id?.toString(),
+      formatType: data.formatType,
+      fixingType: data.fixingType,
+      gameType: data.gameType,
+      totalWinnersRounds,
+      totalLosersRounds,
+      winnersRoundsNames,
+      losersRoundsNames,
+      finalRoundName: "Final",
+      totalTeams: data.participants,
+      // totalParticipants,
+      teams: participantsIds,
+      //   participants,
+    };
+    console.log("double format data : ", formatData);
+    // creating tournament format
+    let tournamentFormat = await doubleKnockoutModel.create([formatData], {
+      session: session,
+    });
+    console.log("tournament format created: ", tournamentFormat);
+    tournamentFormat = tournamentFormat[0];
 
-    // let losersBrackets = roundsBrackets.losersBrackets?.map((round) => {
-    //   return {
-    //     roundNumber: round?.round,
-    //     roundName: round?.roundName,
-    //     matches: round?.matches,
-    //     brackets: round?.brackets,
-    //   };
-    // });
-    // let winnersBrackets = roundsBrackets.winnersBrackets;
+    let losersBrackets = roundsBrackets.losersBrackets?.map((round) => {
+      return {
+        roundNumber: round?.round,
+        roundName: round?.roundName,
+        matches: round?.matches,
+        brackets: round?.brackets,
+      };
+    });
+    let winnersBrackets = roundsBrackets.winnersBrackets;
 
-    // // creating rounds and matches
-    // // 1. creating rounds and matches for winner brackets
+    // creating rounds and matches
+    // 1. creating rounds and matches for winner brackets
 
-    // // Iterating over rounds data and creating rounds and matches respective to rounds and storing them
+    // Iterating over rounds data and creating rounds and matches respective to rounds and storing them
 
-    // let tournamentID = tournament?._id?.toString();
-    // let formatTypeID = tournamentFormat?._id?.toString();
+    let tournamentID = tournament?._id?.toString();
+    let formatTypeID = tournamentFormat?._id?.toString();
 
-    // let winnersRoundsAndMatches = await createRoundsAndThereMatches(
-    //   tournamentID,
-    //   formatTypeID,
-    //   data.formatType,
-    //   participantsIds,
-    //   winnersBrackets,
-    //   session
-    // );
-    // let losersRoundsAndMatches = await createRoundsAndThereMatches(
-    //   tournamentID,
-    //   formatTypeID,
-    //   data.formatType,
-    //   participantsIds,
-    //   losersBrackets,
-    //   session
-    // );
+    let winnersRoundsAndMatches = await createRoundsAndThereMatches(
+      tournamentID,
+      formatTypeID,
+      data.formatType,
+      participantsIds,
+      winnersBrackets,
+      session
+    );
+    let losersRoundsAndMatches = await createRoundsAndThereMatches(
+      tournamentID,
+      formatTypeID,
+      data.formatType,
+      participantsIds,
+      losersBrackets,
+      session
+    );
 
     // referencing next rounds matches into previous rounds matches to help the winner to move forward
-    let tournamentID = "668e3f0bac1e3db0418e870c";
-    let formatTypeID = "668e3f0bac1e3db0418e871f";
+    // let tournamentID = "668f772412e6130534387dc6";
+    // let formatTypeID = "668f772512e6130534387dd9";
     let winnersRoundsReferences = await referencingMatchesToNextMatches(
       tournamentID,
       formatTypeID,
@@ -734,16 +766,73 @@ const createDoubleEliminationTournament = async (req, res) => {
       session
     );
 
+    const finalObjData = {
+      tournamentID: tournamentID,
+      formatTypeID: formatTypeID,
+      gameType: data.gameType,
+      formatType: data.formatType,
+    };
+    const finalBracketData = await creatingFinalBracketRoundMatch(
+      finalObjData,
+      session
+    );
+
+    const finalBracketRound = finalBracketData?.finalBracket;
+    let FinalBracketMatch = finalBracketData?.finalMatch;
+
+    const winnersLastRound = winnersRoundsReferences.length;
+    winnersRoundsReferences[winnersLastRound - 1].matches[0].nextMatch =
+      FinalBracketMatch?._id?.toString();
+    FinalBracketMatch.matchA =
+      winnersRoundsReferences[winnersLastRound - 1].matches[0]?._id?.toString();
+
+    let losersLastRound = losersRoundsReferences.length;
+    losersRoundsReferences[losersLastRound - 1].matches[0].nextMatch =
+      FinalBracketMatch?._id?.toString();
+    FinalBracketMatch.matchB =
+      losersRoundsReferences[losersLastRound - 1].matches[0]?._id?.toString();
+
+    winnersRoundsReferences[winnersLastRound - 1].matches[0] =
+      await winnersRoundsReferences[winnersLastRound - 1].matches[0].save({
+        session,
+      });
+    losersRoundsReferences[losersLastRound - 1].matches[0] =
+      await losersRoundsReferences[losersLastRound - 1].matches[0].save({
+        session,
+      });
+    FinalBracketMatch = await FinalBracketMatch.save({ session });
+
+    console.log("final round : ", finalBracketRound);
+    console.log("final match : ", FinalBracketMatch);
+
+    let winnersRoundsIDs = winnersRoundsReferences?.map((round) =>
+      round?._id?.toString()
+    );
+    let losersRoundsIDs = losersRoundsReferences?.map((round) =>
+      round?._id?.toString()
+    );
+    let finalRoundID = [finalBracketRound?._id?.toString()];
+    console.log("winners ids : ", winnersRoundsIDs);
+    console.log("losers ids : ", losersRoundsIDs);
+    console.log("final ids : ", finalRoundID);
+    tournamentFormat.winnersRoundsIds = winnersRoundsIDs;
+    tournamentFormat.losersRoundsIds = losersRoundsIDs;
+    tournamentFormat.finalRoundId = finalRoundID;
+    tournamentFormat = await tournamentFormat.save({ session });
+    tournament.formatId = tournamentFormat?._id?.toString();
+    tournament = await tournament.save({ session });
     SuccessResponse.data = {
-      // tournament: tournament,
-      // FormData: formatData,
-      // tournamentFormat,
-      // winnersRoundsAndMatches,
-      // losersRoundsAndMatches,
-      // losersBrackets: losersBrackets,
-      // winnersBrackets: winnersBrackets,
+      tournament: tournament,
+      FormData: formatData,
+      tournamentFormat,
+      winnersRoundsAndMatches,
+      losersRoundsAndMatches,
+      losersBrackets: losersBrackets,
+      winnersBrackets: winnersBrackets,
       winnersRoundsReferences,
       losersRoundsReferences,
+      finalBracketRound,
+      FinalBracketMatch,
     };
     await session.commitTransaction();
     await session.endSession();
