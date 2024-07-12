@@ -375,53 +375,64 @@ const referencingMatchesToNextMatches = async (
         "current round matches length : ",
         currentRoundMatches.length
       );
-      if (prevRoundMatchesIds.length % 2 !== 0) {
-        const matchA = prevRoundMatchesIds[prevRoundMatchesIds.length - 1];
-        const matchB = prevRoundMatchesIds[1];
-        allRoundsData[i - 1].matches[0].matchA = matchA;
-        allRoundsData[i - 1].matches[0].matchB = matchB;
-        allRoundsData[i - 1].matches[0] = await allRoundsData[
-          i - 1
-        ].matches[0].save({ session });
-        let index = 2;
-        for (let match = 1; match < currentRoundMatches.length; match++) {
-          if (
-            index !== prevRoundMatchesIds.length - 1 &&
-            index < prevRoundMatchesIds.length
-          ) {
-            currentRoundMatches[match].matchA = prevRoundMatchesIds[index];
-            if (index + 1 < prevRoundMatchesIds.length - 1) {
-              currentRoundMatches[match].matchB =
-                prevRoundMatchesIds[index + 1];
-              index = index + 2;
-            } else {
-              index++;
-            }
+      let index = 0;
+      for (let match = 0; match < currentRoundMatches.length; match++) {
+        if (index < prevRoundMatchesIds.length) {
+          currentRoundMatches[match].matchA = prevRoundMatchesIds[index];
+          if (index + 1 < prevRoundMatchesIds.length) {
+            currentRoundMatches[match].matchB = prevRoundMatchesIds[index + 1];
+            index = index + 2;
+          } else {
+            index++;
           }
-          currentRoundMatches[match] = await currentRoundMatches[match].save({
-            session,
-          });
         }
-        console.log("matchA : " + matchA + ", matchB : " + matchB);
-      } else {
-        let index = 0;
-        for (let match = 0; match < currentRoundMatches.length; match++) {
-          if (index < prevRoundMatchesIds.length) {
-            currentRoundMatches[match].matchA = prevRoundMatchesIds[index];
-            if (index + 1 < prevRoundMatchesIds.length) {
-              currentRoundMatches[match].matchB =
-                prevRoundMatchesIds[index + 1];
-              index = index + 2;
-            } else {
-              index++;
-            }
-          }
-          currentRoundMatches[match] = await currentRoundMatches[match].save({
-            session,
-          });
-        }
+        currentRoundMatches[match] = await currentRoundMatches[match].save({
+          session,
+        });
       }
     }
+
+    console.log('before odd code')
+    // handling winners round one for odd match also updating its references into next matches and round
+    if(bracket === "winners"){
+      let participants = allRoundsData[0].participants.length;
+      if(participants % 2 !== 0 &&  allRoundsData[0].roundNumber === 1)
+      {
+        let matchesLength = allRoundsData[0]?.matches.length;
+        let nextMatchId = allRoundsData[0]?.matches[0]?.nextMatch?.toString();
+        let lastMathReferID = allRoundsData[0]?.matches[matchesLength - 1 ]?.nextMatch?.toString();
+        let lastMatchID = allRoundsData[0]?.matches[matchesLength - 1 ]?._id?.toString();
+
+        allRoundsData[0].matches[0].nextMatch = allRoundsData[0]?.matches[matchesLength - 1 ]?._id?.toString();
+        allRoundsData[0].matches[matchesLength - 1 ].nextMatch = nextMatchId;
+        allRoundsData[0].matches[matchesLength - 1 ].matchB = allRoundsData[0]?.matches[0]?._id?.toString();
+
+        console.log('middle odd code',lastMatchID,lastMathReferID);
+        if(lastMathReferID){
+          let nextRoundMatchesLength = allRoundsData[1]?.matches.length;
+          let referMatchIndex = 0
+          allRoundsData[1]?.matches?.filter((match,index)=>{
+            if(match?._id?.toString()===lastMathReferID){
+              referMatchIndex = index;
+              return match;
+            }
+          })
+          if(allRoundsData[1]?.matches[referMatchIndex]?.matchA?.toString() === lastMatchID){
+            allRoundsData[1].matches[referMatchIndex].matchA = null;
+          }
+          if(allRoundsData[1]?.matches[referMatchIndex]?.matchB?.toString() === lastMatchID){
+            allRoundsData[1].matches[referMatchIndex].matchB = null;
+          }
+          console.log('index : ',referMatchIndex);
+          allRoundsData[1].matches[referMatchIndex] = await  allRoundsData[1].matches[referMatchIndex].save({session});
+          console.log('after one',allRoundsData[1].matches[referMatchIndex]);
+        }
+        allRoundsData[0].matches[0] = await allRoundsData[0].matches[0].save({session});
+        allRoundsData[0].matches[matchesLength - 1 ] = await allRoundsData[0].matches[matchesLength - 1 ].save({session});
+      }
+      
+    }
+    console.log('end Odd code');
     console.log("hello", rounds);
     return allRoundsData;
   } catch (error) {
@@ -564,7 +575,7 @@ const arrangingTeamsBasedOnFixingType = (fixingType, teams) => {
     console.log(matchFixingType, " : ", arrangedTeams);
     return arrangedTeams;
   } catch (error) {
-    console.log("error in creating teams", error?.message);
+    console.log(" => error in arranging teams or participants in starting round", error?.message);
     throw new Error(error?.message);
   }
 };
@@ -742,7 +753,7 @@ const createDoubleEliminationTournament = async (req, res) => {
       session
     );
 
-    // referencing next rounds matches into previous rounds matches to help the winner to move forward
+    // referencing next rounds matches into previous rounds matches to help the winner to move forward in winner Bracket
     // let tournamentID = "668f772412e6130534387dc6";
     // let formatTypeID = "668f772512e6130534387dd9";
     let winnersRoundsReferences = await referencingMatchesToNextMatches(
@@ -751,6 +762,49 @@ const createDoubleEliminationTournament = async (req, res) => {
       "winners",
       session
     );
+
+    // arranging teams in matches based on fixingType and also handling if 1 team left in 1st round to happen match
+
+    const arrangedTeams = arrangingTeamsBasedOnFixingType(
+      data.fixingType,
+      participantsIds
+    );
+    console.log(
+      "arranged Teams length : ",
+      arrangedTeams,
+      arrangedTeams.length
+    );
+
+      // arranging teams in round 1 only
+      if (winnersRoundsReferences[0]?.roundNumber === 1) {
+        let index = 0;
+        let incrementIndex = 0;
+        for(let match of winnersRoundsReferences[0].matches){
+          if (index < arrangedTeams.length) {
+            match.teamA = arrangedTeams[index];
+            if (index + 1 < arrangedTeams.length) {
+              match.teamB = arrangedTeams[index + 1];
+              index += 2;
+            }
+            winnersRoundsReferences[0].matches[incrementIndex] = await winnersRoundsReferences[0]?.matches[incrementIndex].save({ session });
+          }
+          incrementIndex++;
+        }
+        // winnersRoundsReferences[0].matches.forEach(async (match, i) => {
+        //   if (index < arrangedTeams.length) {
+        //     match.teamA = arrangedTeams[index];
+        //     if (index + 1 < arrangedTeams.length) {
+        //       match.teamB = arrangedTeams[index + 1];
+        //       index += 2;
+        //     }
+        //     const matchData = await winnersRoundsReferences[0]?.matches[i].save({ session });
+        //     console.log("match : ", i, " ,data : ", matchData);
+        //   }
+        // });
+      }
+
+
+    // referencing next rounds matches into previous rounds matches to help the winner to move forward in losers bracket
     let losersRoundsReferences = await referencingMatchesToNextMatches(
       tournamentID,
       formatTypeID,

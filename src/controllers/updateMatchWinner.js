@@ -92,7 +92,7 @@ const updateMatchWinner = async (req, res) => {
       let nextRound = await roundModel
         .findById(nextMatchDetails?.roundID)
         .populate("matches");
-      if (currentRound?._id?.toString() !== nextRound?._id?.toString()) {
+      if (currentRound?._id?.toString() !== nextRound?._id?.toString()) { 
         let exist = nextRound.teams?.filter(
           (teamId) => teamId.toString() === updatedMatch?.winner.toString()
         );
