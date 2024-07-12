@@ -6,5 +6,6 @@ module.exports = {
     updateWinnerController : require('./updateMatchWinner'),
     getRoundsController : require('./getTournamentRounds'), 
     addTeamController : require('./addTeamOrPlayerInTournament'),
-    tournamentDoubleController : require('./tournamentDoubleFormat')
+    tournamentDoubleController : require('./tournamentDoubleFormat'),
+    tournamentWinnerUpdateController : require('./updateDoubleWinnerMatch')
 }

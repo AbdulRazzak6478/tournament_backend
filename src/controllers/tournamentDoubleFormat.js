@@ -402,15 +402,21 @@ const referencingMatchesToNextMatches = async (
         let nextMatchId = allRoundsData[0]?.matches[0]?.nextMatch?.toString();
         let lastMathReferID = allRoundsData[0]?.matches[matchesLength - 1 ]?.nextMatch?.toString();
         let lastMatchID = allRoundsData[0]?.matches[matchesLength - 1 ]?._id?.toString();
-
+        let firstMatchID = allRoundsData[0]?.matches[0]?._id?.toString();
         allRoundsData[0].matches[0].nextMatch = allRoundsData[0]?.matches[matchesLength - 1 ]?._id?.toString();
         allRoundsData[0].matches[matchesLength - 1 ].nextMatch = nextMatchId;
         allRoundsData[0].matches[matchesLength - 1 ].matchB = allRoundsData[0]?.matches[0]?._id?.toString();
 
-        console.log('middle odd code',lastMatchID,lastMathReferID);
+        let firstReferMatchINDX = 0;
+        allRoundsData[1]?.matches?.filter((match,index)=>{
+          if(match?._id?.toString() === firstMatchID){
+            firstReferMatchINDX = index;
+            return match;
+          }
+        })
         if(lastMathReferID){
           let nextRoundMatchesLength = allRoundsData[1]?.matches.length;
-          let referMatchIndex = 0
+          let referMatchIndex = 0;
           allRoundsData[1]?.matches?.filter((match,index)=>{
             if(match?._id?.toString()===lastMathReferID){
               referMatchIndex = index;
@@ -423,10 +429,18 @@ const referencingMatchesToNextMatches = async (
           if(allRoundsData[1]?.matches[referMatchIndex]?.matchB?.toString() === lastMatchID){
             allRoundsData[1].matches[referMatchIndex].matchB = null;
           }
-          console.log('index : ',referMatchIndex);
           allRoundsData[1].matches[referMatchIndex] = await  allRoundsData[1].matches[referMatchIndex].save({session});
-          console.log('after one',allRoundsData[1].matches[referMatchIndex]);
         }
+
+        // replacing first match id with lastMatchID
+        if(allRoundsData[1]?.matches[firstReferMatchINDX]?.matchA?.toString() === firstMatchID){
+          allRoundsData[1].matches[firstReferMatchINDX].matchA = lastMatchID;
+        }
+        if(allRoundsData[1]?.matches[firstReferMatchINDX]?.matchB?.toString() === firstMatchID){
+          allRoundsData[1].matches[firstReferMatchINDX].matchB = lastMatchID;
+        }
+        allRoundsData[1].matches[firstReferMatchINDX] = await  allRoundsData[1].matches[firstReferMatchINDX].save({session});
+
         allRoundsData[0].matches[0] = await allRoundsData[0].matches[0].save({session});
         allRoundsData[0].matches[matchesLength - 1 ] = await allRoundsData[0].matches[matchesLength - 1 ].save({session});
       }

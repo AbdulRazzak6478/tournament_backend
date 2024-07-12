@@ -4,8 +4,9 @@ const tournamentMatchModel = require("../models/matches");
 const tournamentRoundModel = require("../models/Rounds");
 const { SuccessResponse, ErrorResponse } = require("../utils/common/index");
 const { default: mongoose } = require("mongoose");
+const _ = require('lodash');
 
-const createTeam = async (req, res) => {
+const updateWinnerForWinnersBracket = async (req, res) => {
   const session = await mongoose.startSession();
   try {
     session.startTransaction();
@@ -57,6 +58,7 @@ const createTeam = async (req, res) => {
     }
 
     // moving winner into next match and round
+    let responseData = {};
     if (updatedMatch?.nextMatch) {
       let nextMatchDetails = await tournamentMatchModel
         .findById(updatedMatch?.nextMatch.toString())
@@ -69,19 +71,17 @@ const createTeam = async (req, res) => {
       console.log("next match details :  ", nextMatchDetails);
 
       // assigning participants or teams into match
-      
-            if (
-              nextMatchDetails?.matchA?.toString() === updatedMatch?._id?.toString()
-            ) {
-              nextMatchDetails.teamA = updatedMatch?.winner?.toString();
-            }
-            if (
-              nextMatchDetails?.matchB?.toString() === updatedMatch?._id?.toString()
-            ) {
-              nextMatchDetails.teamB = updatedMatch?.winner?.toString();
-            }
-      
-            nextMatchDetails = await nextMatchDetails.save({ session }); 
+      if (
+        nextMatchDetails?.matchA?.toString() === updatedMatch?._id?.toString()
+      ) {
+        nextMatchDetails.teamA = updatedMatch?.winner?.toString();
+      }
+      if (
+        nextMatchDetails?.matchB?.toString() === updatedMatch?._id?.toString()
+      ) {
+        nextMatchDetails.teamB = updatedMatch?.winner?.toString();
+      }
+      nextMatchDetails = await nextMatchDetails.save({ session });
 
       // saving winner into next round participants if it is not the same round
       let nextRound = await tournamentRoundModel
@@ -110,7 +110,7 @@ const createTeam = async (req, res) => {
           nextRound = await nextRound.save({ session });
         }
       }
-      let responseData = {
+      responseData = {
         currentMatch: updatedMatch,
         nextMatchDetails,
         nextRound,
@@ -147,24 +147,66 @@ const createTeam = async (req, res) => {
         nextRoundDetails = {};
       } else {
         let participants = nextRoundDetails?.participants.length;
-        // let matches = nextRoundDetails?.matches;
         if (participants % 2 !== 0) {
-          let nextMatchId = nextRoundDetails?.matches[0]?.nextMatch?.toString();
-          console.log("next match id ", nextMatchId);
-          const lastIndex = nextRoundDetails?.matches.length;
-          console.log(
-            "last match id : ",
-            nextRoundDetails?.matches[lastIndex - 1]?._id?.toString()
-          );
-          nextRoundDetails.matches[0].nextMatch =
-            nextRoundDetails?.matches[lastIndex - 1]?._id?.toString();
-          nextRoundDetails.matches[lastIndex - 1].nextMatch = nextMatchId;
-          await nextRoundDetails?.matches[0].save({ session });
-          await nextRoundDetails?.matches[lastIndex - 1].save(session);
+        let matchesLength = nextRoundDetails?.matches.length;
+        let nextMatchId = nextRoundDetails?.matches[0]?.nextMatch?.toString();
+        let lastMathReferID = nextRoundDetails?.matches[matchesLength - 1 ]?.nextMatch?.toString();
+        let lastMatchID = nextRoundDetails?.matches[matchesLength - 1 ]?._id?.toString();
+        let firstMatchID = nextRoundDetails?.matches[0]?._id?.toString();
+
+        nextRoundDetails.matches[0].nextMatch = lastMatchID;
+        nextRoundDetails.matches[matchesLength - 1 ].nextMatch = nextMatchId;
+        nextRoundDetails.matches[matchesLength - 1 ].matchB = firstMatchID;
+        let firstReferMatchINDX = 0;
+        nextRoundDetails?.matches?.filter((match,index)=>{
+          if(match?._id?.toString() === firstMatchID){
+            firstReferMatchINDX = index;
+            return match;
+          }
+        })
+        if(lastMathReferID){
+          let nextNextRoundDetails = await tournamentRoundModel
+          .findOne({
+            roundNumber: nextRoundDetails?.roundNumber + 1,
+            tournamentID: nextRoundDetails?.tournamentID,
+            formatTypeID: nextRoundDetails?.formatTypeID,
+          })
+          .populate("matches")
+          .session(session);
+          if(!_.isEmpty(nextNextRoundDetails)){
+            let referMatchIndex = 0;
+            nextNextRoundDetails?.matches?.filter((match,index)=>{
+              if(match?._id?.toString()===lastMathReferID){
+                referMatchIndex = index;
+                return match;
+              }
+            })
+            if(nextNextRoundDetails?.matches[referMatchIndex]?.matchA?.toString() === lastMatchID){
+              nextNextRoundDetails.matches[referMatchIndex].matchA = null;
+            }
+            if(nextNextRoundDetails?.matches[referMatchIndex]?.matchB?.toString() === lastMatchID){
+              nextNextRoundDetails.matches[referMatchIndex].matchB = null;
+            }
+            nextNextRoundDetails.matches[referMatchIndex] = await nextNextRoundDetails.matches[referMatchIndex].save({session});
+          }
+        }
+        
+        // replacing first match id with lastMatchID
+        if(nextRoundDetails?.matches[firstReferMatchINDX]?.matchA?.toString() === firstMatchID){
+          nextRoundDetails.matches[firstReferMatchINDX].matchA = lastMatchID;
+        }
+        if(nextRoundDetails?.matches[firstReferMatchINDX]?.matchB?.toString() === firstMatchID){
+          nextRoundDetails.matches[firstReferMatchINDX].matchB = lastMatchID;
+        }
+        nextRoundDetails.matches[firstReferMatchINDX] = await  nextRoundDetails.matches[firstReferMatchINDX].save({session});
+
+        nextRoundDetails.matches[0] = await nextRoundDetails.matches[0].save({session});
+        nextRoundDetails.matches[matchesLength - 1 ] = await nextRoundDetails.matches[matchesLength - 1 ].save({session});
         }
       }
     }
 
+    SuccessResponse.data = responseData;
     await session.commitTransaction();
     await session.endSession();
     return res.status(201).json(SuccessResponse);
@@ -185,5 +227,5 @@ const createTeam = async (req, res) => {
 };
 
 module.exports = {
-  createTeam,
+  updateWinnerForWinnersBracket,
 };

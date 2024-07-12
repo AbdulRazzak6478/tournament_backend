@@ -1,5 +1,5 @@
 const express = require('express');
-const { InfoController , playerController, teamController, tournamentController, updateWinnerController, getRoundsController, addTeamController, tournamentDoubleController} = require('../controllers');
+const { InfoController , playerController, teamController, tournamentController, updateWinnerController, getRoundsController, addTeamController, tournamentDoubleController, tournamentWinnerUpdateController} = require('../controllers');
 const router = express.Router();
 
 router.get('/info',InfoController.info);
@@ -11,6 +11,8 @@ router.post('/tournaments/addTeam/:tourId',addTeamController.AddTeamInTournament
 router.put('/tournaments/updateWinner',updateWinnerController.updateMatchWinner);
 router.get('/tournaments/getRounds',getRoundsController.getTournamentRounds);
 router.get('/tournaments/getRounds/:roundId',getRoundsController.getRoundById);
+
+router.put('/tournaments/double/updateWinner/winners',tournamentWinnerUpdateController.updateWinnerForWinnersBracket);
 router.get('/test',InfoController.testTour);
 
 
