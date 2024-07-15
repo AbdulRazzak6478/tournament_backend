@@ -66,9 +66,7 @@ const updateLoserIntoLoserBracketRoundMatch = async (
       );
       console.log("exist : ", exist);
       if (exist.length === 0) {
-        losersBracketsRoundsAndMatches[0].participants?.push(
-          matchLoser
-        );
+        losersBracketsRoundsAndMatches[0].participants?.push(matchLoser);
         losersBracketsRoundsAndMatches[0] =
           await losersBracketsRoundsAndMatches[0].save({ session });
       } else {
@@ -77,9 +75,7 @@ const updateLoserIntoLoserBracketRoundMatch = async (
             (participantID) =>
               participantID?.toString() !== exist[0]?.toString()
           );
-        losersBracketsRoundsAndMatches[0].participants?.push(
-          matchLoser
-        );
+        losersBracketsRoundsAndMatches[0].participants?.push(matchLoser);
         losersBracketsRoundsAndMatches[0] =
           await losersBracketsRoundsAndMatches[0].save({ session });
       }
@@ -119,9 +115,7 @@ const updateLoserIntoLoserBracketRoundMatch = async (
       });
       console.log("exist : ", exist);
       if (exist.length === 0) {
-        loserBracketRound[0].participants?.push(
-          matchLoser
-        );
+        loserBracketRound[0].participants?.push(matchLoser);
         loserBracketRound[0] = await loserBracketRound[0].save({ session });
       } else {
         loserBracketRound[0].participants =
@@ -129,9 +123,7 @@ const updateLoserIntoLoserBracketRoundMatch = async (
             (participantID) =>
               participantID?.toString() !== exist[0]?.toString()
           );
-        loserBracketRound[0].participants?.push(
-          matchLoser
-        );
+        loserBracketRound[0].participants?.push(matchLoser);
         loserBracketRound[0] = await loserBracketRound[0].save({ session });
       }
     }
@@ -168,6 +160,7 @@ const updateWinnerForWinnersBracket = async (req, res) => {
     console.log("update winner data : ", data, matchID);
     const match = await tournamentMatchModel.findById(matchID).session(session);
     console.log("before update match : ", match);
+    let previousWinner = match?.winner ? true : false;
     match.scoreA = data.scoreA;
     match.scoreB = data.scoreB;
     match.winner = data.winner;
@@ -294,7 +287,7 @@ const updateWinnerForWinnersBracket = async (req, res) => {
         nextRoundDetails = {};
       } else {
         let participants = nextRoundDetails?.participants.length;
-        if (participants % 2 !== 0) {
+        if (participants % 2 !== 0 && !previousWinner) {
           let matchesLength = nextRoundDetails?.matches.length;
           let nextMatchId = nextRoundDetails?.matches[0]?.nextMatch?.toString();
           let lastMathReferID =
@@ -337,14 +330,16 @@ const updateWinnerForWinnersBracket = async (req, res) => {
                 if (
                   nextNextRoundDetails?.matches[
                     referMatchIndex
-                  ]?.matchA?.toString() === lastMatchID
+                  ]?.matchA?.toString() === lastMatchID &&
+                  !previousWinner
                 ) {
                   nextNextRoundDetails.matches[referMatchIndex].matchA = null;
                 }
                 if (
                   nextNextRoundDetails?.matches[
                     referMatchIndex
-                  ]?.matchB?.toString() === lastMatchID
+                  ]?.matchB?.toString() === lastMatchID &&
+                  !previousWinner
                 ) {
                   nextNextRoundDetails.matches[referMatchIndex].matchB = null;
                 }
@@ -400,7 +395,7 @@ const updateWinnerForWinnersBracket = async (req, res) => {
       if (currentRound?.roundNumber === 1) {
         let firstLosersRound = losersBrackets[0];
         let participants = firstLosersRound?.participants.length;
-        if (participants % 2 !== 0) {
+        if (participants % 2 !== 0 && !previousWinner) {
           let matchesLength = firstLosersRound?.matches.length;
           let firstMatchID = firstLosersRound?.matches[0]?._id?.toString();
           let nextMatchId = firstLosersRound?.matches[0]?.nextMatch?.toString();
@@ -435,14 +430,16 @@ const updateWinnerForWinnersBracket = async (req, res) => {
               if (
                 losersNextRoundDetails?.matches[
                   referMatchIndex
-                ]?.matchA?.toString() === lastMatchID
+                ]?.matchA?.toString() === lastMatchID &&
+                !previousWinner
               ) {
                 losersNextRoundDetails.matches[referMatchIndex].matchA = null;
               }
               if (
                 losersNextRoundDetails?.matches[
                   referMatchIndex
-                ]?.matchB?.toString() === lastMatchID
+                ]?.matchB?.toString() === lastMatchID &&
+                !previousWinner
               ) {
                 losersNextRoundDetails.matches[referMatchIndex].matchB = null;
               }
@@ -539,7 +536,8 @@ const updateWinnerForWinnersBracket = async (req, res) => {
                   if (
                     losersNextRoundDetails?.matches[
                       referMatchIndex
-                    ]?.matchA?.toString() === lastMatchID
+                    ]?.matchA?.toString() === lastMatchID &&
+                    !previousWinner
                   ) {
                     losersNextRoundDetails.matches[referMatchIndex].matchA =
                       null;
@@ -547,7 +545,8 @@ const updateWinnerForWinnersBracket = async (req, res) => {
                   if (
                     losersNextRoundDetails?.matches[
                       referMatchIndex
-                    ]?.matchB?.toString() === lastMatchID
+                    ]?.matchB?.toString() === lastMatchID &&
+                    !previousWinner
                   ) {
                     losersNextRoundDetails.matches[referMatchIndex].matchB =
                       null;
