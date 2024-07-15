@@ -4,7 +4,149 @@ const tournamentMatchModel = require("../models/matches");
 const tournamentRoundModel = require("../models/Rounds");
 const { SuccessResponse, ErrorResponse } = require("../utils/common/index");
 const { default: mongoose } = require("mongoose");
-const _ = require('lodash');
+const _ = require("lodash");
+
+const updateLoserIntoLoserBracketRoundMatch = async (
+  matchDetails,
+  currentRound,
+  session
+) => {
+  try {
+    // 1.find match id into losers Brackets and update the loser for 1st round
+    let matchLoser =
+      matchDetails?.winner?.toString() === matchDetails?.teamA?.toString()
+        ? matchDetails?.teamB?.toString()
+        : matchDetails?.teamA?.toString();
+    console.log("matchDetails : ", matchDetails);
+    console.log(
+      "matchDetails tournamentID : ",
+      matchDetails?.tournamentID?.toString()
+    );
+    console.log("matchDetails  formatID: ", matchDetails?.formatID?.toString());
+    let losersBracketsRoundsAndMatches = await tournamentRoundModel
+      .find({
+        tournamentID: matchDetails?.tournamentID?.toString(),
+        formatTypeID: matchDetails?.formatID?.toString(),
+        brackets: "losers",
+      })
+      .session(session)
+      .populate("matches");
+    // console.log('loser bracket first round : ',losersBracketsRoundsAndMatches[0]?.matches);
+    // if round is 1 then placing all losers into losers first round
+    if (currentRound?.roundNumber === 1) {
+      // iteration and storing
+      for (let loserFirstRoundMatch of losersBracketsRoundsAndMatches[0]
+        ?.matches) {
+        if (
+          loserFirstRoundMatch?.matchA?.toString() ===
+          matchDetails?._id?.toString()
+        ) {
+          loserFirstRoundMatch.teamA = matchLoser;
+          loserFirstRoundMatch = await loserFirstRoundMatch.save({ session });
+        }
+        if (
+          loserFirstRoundMatch?.matchB?.toString() ===
+          matchDetails?._id?.toString()
+        ) {
+          loserFirstRoundMatch.teamB = matchLoser;
+          loserFirstRoundMatch = await loserFirstRoundMatch.save({ session });
+        }
+      }
+      // handling participants array if there are multiple update with different participants of same match
+      let exist = losersBracketsRoundsAndMatches[0]?.participants?.filter(
+        (participant) => {
+          if (
+            participant.toString() === matchDetails?.winner?.toString() ||
+            participant.toString() === matchDetails?.teamA?.toString() ||
+            participant.toString() === matchDetails?.teamB?.toString()
+          ) {
+            return participant.toString();
+          }
+        }
+      );
+      console.log("exist : ", exist);
+      if (exist.length === 0) {
+        losersBracketsRoundsAndMatches[0].participants?.push(
+          matchLoser
+        );
+        losersBracketsRoundsAndMatches[0] =
+          await losersBracketsRoundsAndMatches[0].save({ session });
+      } else {
+        losersBracketsRoundsAndMatches[0].participants =
+          losersBracketsRoundsAndMatches[0]?.participants?.filter(
+            (participantID) =>
+              participantID?.toString() !== exist[0]?.toString()
+          );
+        losersBracketsRoundsAndMatches[0].participants?.push(
+          matchLoser
+        );
+        losersBracketsRoundsAndMatches[0] =
+          await losersBracketsRoundsAndMatches[0].save({ session });
+      }
+    } else {
+      let loserBracketRound = losersBracketsRoundsAndMatches?.filter(
+        (loserRound) => {
+          if (currentRound?.roundNumber === loserRound?.roundNumber) {
+            return loserRound;
+          }
+        }
+      );
+      console.log("loser Round : ", loserBracketRound);
+      // iteration and storing
+      for (let loserRoundMatch of loserBracketRound[0]?.matches) {
+        if (
+          loserRoundMatch?.matchA?.toString() === matchDetails?._id?.toString()
+        ) {
+          loserRoundMatch.teamA = matchLoser;
+          loserRoundMatch = await loserRoundMatch.save({ session });
+        }
+        if (
+          loserRoundMatch?.matchB?.toString() === matchDetails?._id?.toString()
+        ) {
+          loserRoundMatch.teamB = matchLoser;
+          loserRoundMatch = await loserRoundMatch.save({ session });
+        }
+      }
+      // handling participants array if there are multiple update with different participants of same match
+      let exist = loserBracketRound[0]?.participants?.filter((participant) => {
+        if (
+          participant.toString() === matchDetails?.winner?.toString() ||
+          participant.toString() === matchDetails?.teamA?.toString() ||
+          participant.toString() === matchDetails?.teamB?.toString()
+        ) {
+          return participant.toString();
+        }
+      });
+      console.log("exist : ", exist);
+      if (exist.length === 0) {
+        loserBracketRound[0].participants?.push(
+          matchLoser
+        );
+        loserBracketRound[0] = await loserBracketRound[0].save({ session });
+      } else {
+        loserBracketRound[0].participants =
+          loserBracketRound[0]?.participants?.filter(
+            (participantID) =>
+              participantID?.toString() !== exist[0]?.toString()
+          );
+        loserBracketRound[0].participants?.push(
+          matchLoser
+        );
+        loserBracketRound[0] = await loserBracketRound[0].save({ session });
+      }
+    }
+    console.log(
+      "losersBracketsRoundsAndMatches : ",
+      losersBracketsRoundsAndMatches.length
+    );
+    return losersBracketsRoundsAndMatches;
+  } catch (error) {
+    throw new Error(
+      " => error in updating winner bracket loser into loser bracket round match : ",
+      error?.message
+    );
+  }
+};
 
 const updateWinnerForWinnersBracket = async (req, res) => {
   const session = await mongoose.startSession();
@@ -31,12 +173,17 @@ const updateWinnerForWinnersBracket = async (req, res) => {
     match.winner = data.winner;
     let updatedMatch = await match.save({ session });
     console.log("after update match : ", updatedMatch);
-
-    // Saving winner into round winners array and checking not to save multiple winners of same match
+    // const losersBrackets = await updateLoserIntoLoserBracketRoundMatch(
+    //   updatedMatch,
+    //   currentRound,
+    //   session
+    // );
     let currentRound = await tournamentRoundModel
-      .findById(updatedMatch?.roundID)
+      .findById(match?.roundID)
       .populate("matches")
       .session(session);
+
+    // Saving winner into round winners array and checking not to save multiple winners of same match
     const exist = currentRound.winners?.filter((winnerId) => {
       if (
         winnerId.toString() === updatedMatch?.winner?.toString() ||
@@ -61,7 +208,7 @@ const updateWinnerForWinnersBracket = async (req, res) => {
     let responseData = {};
     if (updatedMatch?.nextMatch) {
       let nextMatchDetails = await tournamentMatchModel
-        .findById(updatedMatch?.nextMatch.toString())
+        .findById(updatedMatch?.nextMatch?.toString())
         .session(session);
       if (_.isEmpty(nextMatchDetails)) {
         throw new Error(
@@ -148,60 +295,303 @@ const updateWinnerForWinnersBracket = async (req, res) => {
       } else {
         let participants = nextRoundDetails?.participants.length;
         if (participants % 2 !== 0) {
-        let matchesLength = nextRoundDetails?.matches.length;
-        let nextMatchId = nextRoundDetails?.matches[0]?.nextMatch?.toString();
-        let lastMathReferID = nextRoundDetails?.matches[matchesLength - 1 ]?.nextMatch?.toString();
-        let lastMatchID = nextRoundDetails?.matches[matchesLength - 1 ]?._id?.toString();
-        let firstMatchID = nextRoundDetails?.matches[0]?._id?.toString();
+          let matchesLength = nextRoundDetails?.matches.length;
+          let nextMatchId = nextRoundDetails?.matches[0]?.nextMatch?.toString();
+          let lastMathReferID =
+            nextRoundDetails?.matches[matchesLength - 1]?.nextMatch?.toString();
+          let lastMatchID =
+            nextRoundDetails?.matches[matchesLength - 1]?._id?.toString();
+          let firstMatchID = nextRoundDetails?.matches[0]?._id?.toString();
 
-        nextRoundDetails.matches[0].nextMatch = lastMatchID;
-        nextRoundDetails.matches[matchesLength - 1 ].nextMatch = nextMatchId;
-        nextRoundDetails.matches[matchesLength - 1 ].matchB = firstMatchID;
-        let firstReferMatchINDX = 0;
-        nextRoundDetails?.matches?.filter((match,index)=>{
-          if(match?._id?.toString() === firstMatchID){
-            firstReferMatchINDX = index;
-            return match;
-          }
-        })
-        if(lastMathReferID){
+          nextRoundDetails.matches[0].nextMatch = lastMatchID;
+          nextRoundDetails.matches[matchesLength - 1].nextMatch = nextMatchId;
+          nextRoundDetails.matches[matchesLength - 1].matchB = firstMatchID;
+          let firstReferMatchINDX = 0;
           let nextNextRoundDetails = await tournamentRoundModel
-          .findOne({
-            roundNumber: nextRoundDetails?.roundNumber + 1,
-            tournamentID: nextRoundDetails?.tournamentID,
-            formatTypeID: nextRoundDetails?.formatTypeID,
-          })
-          .populate("matches")
-          .session(session);
-          if(!_.isEmpty(nextNextRoundDetails)){
-            let referMatchIndex = 0;
-            nextNextRoundDetails?.matches?.filter((match,index)=>{
-              if(match?._id?.toString()===lastMathReferID){
-                referMatchIndex = index;
+            .findOne({
+              roundNumber: nextRoundDetails?.roundNumber + 1,
+              tournamentID: nextRoundDetails?.tournamentID,
+              formatTypeID: nextRoundDetails?.formatTypeID,
+            })
+            .populate("matches")
+            .session(session);
+
+          if (_.isEmpty(nextNextRoundDetails)) {
+            nextNextRoundDetails = {};
+          } else {
+            nextNextRoundDetails?.matches?.filter((match, index) => {
+              if (match?._id?.toString() === nextMatchId) {
+                firstReferMatchINDX = index;
                 return match;
               }
-            })
-            if(nextNextRoundDetails?.matches[referMatchIndex]?.matchA?.toString() === lastMatchID){
-              nextNextRoundDetails.matches[referMatchIndex].matchA = null;
+            });
+            if (lastMathReferID) {
+              if (!_.isEmpty(nextNextRoundDetails)) {
+                let referMatchIndex = 0;
+                nextNextRoundDetails?.matches?.filter((match, index) => {
+                  if (match?._id?.toString() === lastMathReferID) {
+                    referMatchIndex = index;
+                    return match;
+                  }
+                });
+                if (
+                  nextNextRoundDetails?.matches[
+                    referMatchIndex
+                  ]?.matchA?.toString() === lastMatchID
+                ) {
+                  nextNextRoundDetails.matches[referMatchIndex].matchA = null;
+                }
+                if (
+                  nextNextRoundDetails?.matches[
+                    referMatchIndex
+                  ]?.matchB?.toString() === lastMatchID
+                ) {
+                  nextNextRoundDetails.matches[referMatchIndex].matchB = null;
+                }
+                nextNextRoundDetails.matches[referMatchIndex] =
+                  await nextNextRoundDetails.matches[referMatchIndex].save({
+                    session,
+                  });
+              }
             }
-            if(nextNextRoundDetails?.matches[referMatchIndex]?.matchB?.toString() === lastMatchID){
-              nextNextRoundDetails.matches[referMatchIndex].matchB = null;
+
+            // replacing first match id with lastMatchID into next round match
+            if (
+              nextNextRoundDetails?.matches[
+                firstReferMatchINDX
+              ]?.matchA?.toString() === firstMatchID
+            ) {
+              nextNextRoundDetails.matches[firstReferMatchINDX].matchA =
+                lastMatchID;
             }
-            nextNextRoundDetails.matches[referMatchIndex] = await nextNextRoundDetails.matches[referMatchIndex].save({session});
+            if (
+              nextNextRoundDetails?.matches[
+                firstReferMatchINDX
+              ]?.matchB?.toString() === firstMatchID
+            ) {
+              nextNextRoundDetails.matches[firstReferMatchINDX].matchB =
+                lastMatchID;
+            }
+            nextNextRoundDetails.matches[firstReferMatchINDX] =
+              await nextNextRoundDetails.matches[firstReferMatchINDX].save({
+                session,
+              });
+            console.log(
+              "next round match update : ",
+              nextNextRoundDetails.matches[firstReferMatchINDX]
+            );
+            nextRoundDetails.matches[0] =
+              await nextRoundDetails.matches[0].save({
+                session,
+              });
+            nextRoundDetails.matches[matchesLength - 1] =
+              await nextRoundDetails.matches[matchesLength - 1].save({
+                session,
+              });
           }
         }
-        
-        // replacing first match id with lastMatchID
-        if(nextRoundDetails?.matches[firstReferMatchINDX]?.matchA?.toString() === firstMatchID){
-          nextRoundDetails.matches[firstReferMatchINDX].matchA = lastMatchID;
-        }
-        if(nextRoundDetails?.matches[firstReferMatchINDX]?.matchB?.toString() === firstMatchID){
-          nextRoundDetails.matches[firstReferMatchINDX].matchB = lastMatchID;
-        }
-        nextRoundDetails.matches[firstReferMatchINDX] = await  nextRoundDetails.matches[firstReferMatchINDX].save({session});
+      }
+      // update and schedule next round matches for losers bracket with corresponding to winners bracket current round
+      const losersBrackets = await updateLoserIntoLoserBracketRoundMatch(
+        updatedMatch,
+        currentRound,
+        session
+      );
+      if (currentRound?.roundNumber === 1) {
+        let firstLosersRound = losersBrackets[0];
+        let participants = firstLosersRound?.participants.length;
+        if (participants % 2 !== 0) {
+          let matchesLength = firstLosersRound?.matches.length;
+          let firstMatchID = firstLosersRound?.matches[0]?._id?.toString();
+          let nextMatchId = firstLosersRound?.matches[0]?.nextMatch?.toString();
+          let lastMathReferID =
+            firstLosersRound?.matches[matchesLength - 1]?.nextMatch?.toString();
+          let lastMatchID =
+            firstLosersRound?.matches[matchesLength - 1]?._id?.toString();
 
-        nextRoundDetails.matches[0] = await nextRoundDetails.matches[0].save({session});
-        nextRoundDetails.matches[matchesLength - 1 ] = await nextRoundDetails.matches[matchesLength - 1 ].save({session});
+          firstLosersRound.matches[0].nextMatch = lastMatchID;
+          firstLosersRound.matches[matchesLength - 1].nextMatch = nextMatchId;
+          firstLosersRound.matches[matchesLength - 1].matchB = firstMatchID;
+          let firstReferMatchINDX = 0;
+          let losersNextRoundDetails = losersBrackets[1];
+          if (_.isEmpty(losersNextRoundDetails)) {
+            losersNextRoundDetails = {};
+          }
+          losersNextRoundDetails?.matches?.filter((match, index) => {
+            if (match?._id?.toString() === nextMatchId) {
+              firstReferMatchINDX = index;
+              return match;
+            }
+          });
+          if (lastMathReferID) {
+            if (!_.isEmpty(losersNextRoundDetails)) {
+              let referMatchIndex = 0;
+              losersNextRoundDetails?.matches?.filter((match, index) => {
+                if (match?._id?.toString() === lastMathReferID) {
+                  referMatchIndex = index;
+                  return match;
+                }
+              });
+              if (
+                losersNextRoundDetails?.matches[
+                  referMatchIndex
+                ]?.matchA?.toString() === lastMatchID
+              ) {
+                losersNextRoundDetails.matches[referMatchIndex].matchA = null;
+              }
+              if (
+                losersNextRoundDetails?.matches[
+                  referMatchIndex
+                ]?.matchB?.toString() === lastMatchID
+              ) {
+                losersNextRoundDetails.matches[referMatchIndex].matchB = null;
+              }
+              losersNextRoundDetails.matches[referMatchIndex] =
+                await losersNextRoundDetails.matches[referMatchIndex].save({
+                  session,
+                });
+            }
+          }
+
+          // replacing first match id with lastMatchID into next round match
+          if (
+            losersNextRoundDetails?.matches[
+              firstReferMatchINDX
+            ]?.matchA?.toString() === firstMatchID
+          ) {
+            losersNextRoundDetails.matches[firstReferMatchINDX].matchA =
+              lastMatchID;
+          }
+          if (
+            losersNextRoundDetails?.matches[
+              firstReferMatchINDX
+            ]?.matchB?.toString() === firstMatchID
+          ) {
+            losersNextRoundDetails.matches[firstReferMatchINDX].matchB =
+              lastMatchID;
+          }
+          losersNextRoundDetails.matches[firstReferMatchINDX] =
+            await losersNextRoundDetails.matches[firstReferMatchINDX].save({
+              session,
+            });
+
+          nextRoundDetails.matches[0] = await nextRoundDetails.matches[0].save({
+            session,
+          });
+          nextRoundDetails.matches[matchesLength - 1] =
+            await nextRoundDetails.matches[matchesLength - 1].save({ session });
+        }
+      } else {
+        // checking if previous round matches of loser bracket is also completed or not , if yes then scheduling and arranging
+        let losersPreviousRoundDetails =
+          losersBrackets[currentRound?.roundNumber - 1];
+        let losersCurrentRoundDetails =
+          losersBrackets[currentRound?.roundNumber];
+        let losersNextRoundDetails =
+          losersBrackets[currentRound?.roundNumber + 1];
+        if (_.isEmpty(losersNextRoundDetails)) {
+          losersNextRoundDetails = {};
+        }
+        if (losersPreviousRoundDetails?.isCompleted === true) {
+          let roundParticipants =
+            losersCurrentRoundDetails?.participants.length;
+          if (roundParticipants % 2 !== 0) {
+            let matchesLength = losersCurrentRoundDetails?.matches.length;
+            let nextMatchId =
+              losersCurrentRoundDetails?.matches[0]?.nextMatch?.toString();
+            let lastMathReferID =
+              losersCurrentRoundDetails?.matches[
+                matchesLength - 1
+              ]?.nextMatch?.toString();
+            let lastMatchID =
+              losersCurrentRoundDetails?.matches[
+                matchesLength - 1
+              ]?._id?.toString();
+            let firstMatchID =
+              losersCurrentRoundDetails?.matches[0]?._id?.toString();
+
+            losersCurrentRoundDetails.matches[0].nextMatch = lastMatchID;
+            losersCurrentRoundDetails.matches[matchesLength - 1].nextMatch =
+              nextMatchId;
+            losersCurrentRoundDetails.matches[matchesLength - 1].matchB =
+              firstMatchID;
+
+            let firstReferMatchINDX = 0;
+
+            if (_.isEmpty(losersNextRoundDetails)) {
+              losersNextRoundDetails = {};
+            } else {
+              losersNextRoundDetails?.matches?.filter((match, index) => {
+                if (match?._id?.toString() === nextMatchId) {
+                  firstReferMatchINDX = index;
+                  return match;
+                }
+              });
+              if (lastMathReferID) {
+                if (!_.isEmpty(losersNextRoundDetails)) {
+                  let referMatchIndex = 0;
+                  losersNextRoundDetails?.matches?.filter((match, index) => {
+                    if (match?._id?.toString() === lastMathReferID) {
+                      referMatchIndex = index;
+                      return match;
+                    }
+                  });
+                  if (
+                    losersNextRoundDetails?.matches[
+                      referMatchIndex
+                    ]?.matchA?.toString() === lastMatchID
+                  ) {
+                    losersNextRoundDetails.matches[referMatchIndex].matchA =
+                      null;
+                  }
+                  if (
+                    losersNextRoundDetails?.matches[
+                      referMatchIndex
+                    ]?.matchB?.toString() === lastMatchID
+                  ) {
+                    losersNextRoundDetails.matches[referMatchIndex].matchB =
+                      null;
+                  }
+                  losersNextRoundDetails.matches[referMatchIndex] =
+                    await losersNextRoundDetails.matches[referMatchIndex].save({
+                      session,
+                    });
+                }
+              }
+
+              // replacing first match id with lastMatchID into next round match
+              if (
+                losersNextRoundDetails?.matches[
+                  firstReferMatchINDX
+                ]?.matchA?.toString() === firstMatchID
+              ) {
+                losersNextRoundDetails.matches[firstReferMatchINDX].matchA =
+                  lastMatchID;
+              }
+              if (
+                losersNextRoundDetails?.matches[
+                  firstReferMatchINDX
+                ]?.matchB?.toString() === firstMatchID
+              ) {
+                losersNextRoundDetails.matches[firstReferMatchINDX].matchB =
+                  lastMatchID;
+              }
+              losersNextRoundDetails.matches[firstReferMatchINDX] =
+                await losersNextRoundDetails.matches[firstReferMatchINDX].save({
+                  session,
+                });
+              losersCurrentRoundDetails.matches[0] =
+                await losersCurrentRoundDetails.matches[0].save({
+                  session,
+                });
+              losersCurrentRoundDetails.matches[matchesLength - 1] =
+                await losersCurrentRoundDetails.matches[matchesLength - 1].save(
+                  {
+                    session,
+                  }
+                );
+            }
+          }
         }
       }
     }
