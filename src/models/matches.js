@@ -17,6 +17,10 @@ const matchSchema = new mongoose.Schema({
         type:mongoose.Schema.Types.ObjectId,
         ref: "tournamentFormat"
     },
+    bracket : {
+        type : String,
+        default : 'winners',
+    },
     teamA:{
         type:mongoose.Schema.Types.ObjectId,
         ref: "team",

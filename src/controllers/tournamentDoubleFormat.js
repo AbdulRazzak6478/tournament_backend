@@ -258,10 +258,11 @@ const createRoundsAndThereMatches = async (
       for (let matchData of roundMatches) {
         const str = round?.brackets === "winners" ? "K1" : "k2";
         const matchObj = {
-          name: "Match #" + str + " R" + round?.roundNumber + " M" + matchData,
+          name: "Match #" + str + "R" + round?.roundNumber + "M" + matchData,
           tournamentID: tournamentID,
           roundID: round?._id?.toString(),
           formatID: formatTypeID,
+          bracket : round.brackets,
         };
         allMatches.push(matchObj);
       }
@@ -545,6 +546,7 @@ const creatingFinalBracketRoundMatch = async (data, session) => {
       tournamentID: data.tournamentID,
       roundID: finalBracket?._id?.toString(),
       formatID: data.formatTypeID,
+      bracket : finalBracket?.brackets
     };
     let finalMatch = await matchModel.create([matchObj], { session });
 
