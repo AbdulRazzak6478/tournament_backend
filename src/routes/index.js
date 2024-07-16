@@ -13,6 +13,9 @@ router.get('/tournaments/getRounds',getRoundsController.getTournamentRounds);
 router.get('/tournaments/getRounds/:roundId',getRoundsController.getRoundById);
 
 router.put('/tournaments/double/updateWinner/winners',tournamentWinnerUpdateController.updateWinnerForWinnersBracket);
+// router.put('/tournaments/double/winnersBracket/getRounds',tournamentWinnerUpdateController.updateWinnerForWinnersBracket); 
+router.put('/tournaments/double/updateWinner/losers',tournamentWinnerUpdateController.updateWinnerForLoserBracket);
+// router.put('/tournaments/double/losersBracket/getRounds',tournamentWinnerUpdateController.updateWinnerForLoserBracket);
 router.get('/test',InfoController.testTour);
 
 

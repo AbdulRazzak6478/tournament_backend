@@ -166,11 +166,6 @@ const updateWinnerForWinnersBracket = async (req, res) => {
     match.winner = data.winner;
     let updatedMatch = await match.save({ session });
     console.log("after update match : ", updatedMatch);
-    // const losersBrackets = await updateLoserIntoLoserBracketRoundMatch(
-    //   updatedMatch,
-    //   currentRound,
-    //   session
-    // );
     let currentRound = await tournamentRoundModel
       .findById(match?.roundID)
       .populate("matches")
@@ -179,25 +174,26 @@ const updateWinnerForWinnersBracket = async (req, res) => {
     // Saving winner into round winners array and checking not to save multiple winners of same match
     const exist = currentRound.winners?.filter((winnerId) => {
       if (
-        winnerId.toString() === updatedMatch?.winner?.toString() ||
-        winnerId.toString() === updatedMatch?.teamA?.toString() ||
-        winnerId.toString() === updatedMatch?.teamB?.toString()
+        winnerId?.toString() === updatedMatch?.winner?.toString() ||
+        winnerId?.toString() === updatedMatch?.teamA?.toString() ||
+        winnerId?.toString() === updatedMatch?.teamB?.toString()
       ) {
-        return winnerId.toString();
+        return winnerId?.toString();
       }
     });
     if (exist.length === 0) {
-      currentRound.winners.push(updatedMatch?.winner.toString());
+      currentRound.winners.push(updatedMatch?.winner?.toString());
       currentRound = await currentRound.save({ session });
     } else {
       currentRound.winners = currentRound.winners.filter(
         (winnerId) => winnerId !== exist[0]
       );
-      currentRound.winners.push(updatedMatch?.winner.toString());
+      currentRound.winners.push(updatedMatch?.winner?.toString());
       currentRound = await currentRound.save({ session });
     }
 
     // moving winner into next match and round
+    let checkNextRound = {};
     let responseData = {};
     if (updatedMatch?.nextMatch) {
       let nextMatchDetails = await tournamentMatchModel
@@ -232,22 +228,23 @@ const updateWinnerForWinnersBracket = async (req, res) => {
       if (currentRound?._id?.toString() !== nextRound?._id?.toString()) {
         let exist = nextRound.participants?.filter((participantId) => {
           if (
-            participantId.toString() === updatedMatch?.winner.toString() ||
-            participantId.toString() === updatedMatch?.teamA.toString() ||
-            participantId.toString() === updatedMatch?.teamB.toString()
+            participantId?.toString() === updatedMatch?.winner?.toString() ||
+            participantId?.toString() === updatedMatch?.teamA?.toString() ||
+            participantId?.toString() === updatedMatch?.teamB?.toString()
           ) {
-            return participantId.toString();
+            return participantId?.toString();
           }
         });
         if (exist.length === 0) {
-          nextRound.participants.push(updatedMatch?.winner.toString());
+          nextRound.participants.push(updatedMatch?.winner?.toString());
           nextRound = await nextRound.save({ session });
         } else {
           nextRound.participants = nextRound.participants.filter(
             (winnerId) => winnerId !== exist[0]
           );
-          nextRound.participants.push(updatedMatch?.winner.toString());
+          nextRound.participants.push(updatedMatch?.winner?.toString());
           nextRound = await nextRound.save({ session });
+          checkNextRound = nextRound;
         }
       }
       responseData = {
@@ -259,6 +256,21 @@ const updateWinnerForWinnersBracket = async (req, res) => {
       responseData = {
         currentMatch: updatedMatch,
       };
+    }
+
+    let losersBrackets = [];
+    if(checkNextRound?.brackets !== 'winners'){
+      SuccessResponse.data = responseData;
+      await session.commitTransaction();
+      await session.endSession();
+      return res.status(201).json(SuccessResponse);
+    }else{
+      // update loser into loser bracket
+      losersBrackets = await updateLoserIntoLoserBracketRoundMatch(
+        updatedMatch,
+        currentRound,
+        session
+      );
     }
 
     //scheduling next round matches
@@ -387,11 +399,7 @@ const updateWinnerForWinnersBracket = async (req, res) => {
         }
       }
       // update and schedule next round matches for losers bracket with corresponding to winners bracket current round
-      const losersBrackets = await updateLoserIntoLoserBracketRoundMatch(
-        updatedMatch,
-        currentRound,
-        session
-      );
+
       if (currentRound?.roundNumber === 1) {
         let firstLosersRound = losersBrackets[0];
         let participants = firstLosersRound?.participants.length;
@@ -492,7 +500,7 @@ const updateWinnerForWinnersBracket = async (req, res) => {
         if (losersPreviousRoundDetails?.isCompleted === true) {
           let roundParticipants =
             losersCurrentRoundDetails?.participants.length;
-          if (roundParticipants % 2 !== 0) {
+          if (roundParticipants % 2 !== 0 && !previousWinner) {
             let matchesLength = losersCurrentRoundDetails?.matches.length;
             let nextMatchId =
               losersCurrentRoundDetails?.matches[0]?.nextMatch?.toString();
@@ -615,6 +623,256 @@ const updateWinnerForWinnersBracket = async (req, res) => {
   }
 };
 
+const updateWinnerForLoserBracket = async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    session.startTransaction();
+
+    const matchID = req.body.matchID;
+    const data = {
+      scoreA: req.body.scoreA,
+      scoreB: req.body.scoreB,
+      winner: req.body.winnerID,
+    };
+    const matchDetails = await tournamentMatchModel
+      .findById(matchID)
+      .session(session);
+    if (!matchDetails) {
+      throw new Error(" => match not found");
+    }
+    console.log("before update match : ", matchDetails);
+    let previousWinner = matchDetails?.winner ? true : false;
+    matchDetails.scoreA = data.scoreA;
+    matchDetails.scoreB = data.scoreB;
+    matchDetails.winner = data.winner;
+    let updatedMatch = await matchDetails.save({ session });
+    console.log("after update match : ", updatedMatch);
+    let currentLoserRound = await tournamentRoundModel
+      .findById(matchDetails?.roundID)
+      .populate("matches")
+      .session(session);
+
+    // Saving winner into round winners array and checking not to save multiple winners of same match
+    const exist = currentLoserRound.winners?.filter((winnerId) => {
+      if (
+        winnerId.toString() === updatedMatch?.winner?.toString() ||
+        winnerId.toString() === updatedMatch?.teamA?.toString() ||
+        winnerId.toString() === updatedMatch?.teamB?.toString()
+      ) {
+        return winnerId.toString();
+      }
+    });
+    if (exist.length === 0) {
+      currentLoserRound.winners.push(updatedMatch?.winner.toString());
+      currentLoserRound = await currentLoserRound.save({ session });
+    } else {
+      currentLoserRound.winners = currentLoserRound.winners.filter(
+        (winnerId) => winnerId !== exist[0]
+      );
+      currentLoserRound.winners.push(updatedMatch?.winner.toString());
+      currentLoserRound = await currentLoserRound.save({ session });
+    }
+
+    // moving winner into next match and round
+    let loserNextRound = {};
+    let responseData = {};
+    if (updatedMatch?.nextMatch) {
+      let nextMatchDetails = await tournamentMatchModel
+        .findById(updatedMatch?.nextMatch?.toString())
+        .session(session);
+      if (_.isEmpty(nextMatchDetails)) {
+        throw new Error(
+          " Error in fetching next match details in winners bracket"
+        );
+      }
+      console.log("next match details :  ", nextMatchDetails);
+
+      // assigning participants or teams into match
+      if (
+        nextMatchDetails?.matchA?.toString() === updatedMatch?._id?.toString()
+      ) {
+        nextMatchDetails.teamA = updatedMatch?.winner?.toString();
+      }
+      if (
+        nextMatchDetails?.matchB?.toString() === updatedMatch?._id?.toString()
+      ) {
+        nextMatchDetails.teamB = updatedMatch?.winner?.toString();
+      }
+      nextMatchDetails = await nextMatchDetails.save({ session });
+
+      // saving winner into next round participants if it is not the same round
+      let nextRound = await tournamentRoundModel
+        .findById(nextMatchDetails?.roundID)
+        .populate("matches")
+        .session(session);
+      if (_.isEmpty(nextRound)) {
+        nextRound = {};
+      }
+
+      if (currentLoserRound?._id?.toString() !== nextRound?._id?.toString()) {
+        let exist = nextRound.participants?.filter((participantId) => {
+          if (
+            participantId.toString() === updatedMatch?.winner.toString() ||
+            participantId.toString() === updatedMatch?.teamA.toString() ||
+            participantId.toString() === updatedMatch?.teamB.toString()
+          ) {
+            return participantId.toString();
+          }
+        });
+        if (exist.length === 0) {
+          nextRound.participants.push(updatedMatch?.winner.toString());
+          nextRound = await nextRound.save({ session });
+        } else {
+          nextRound.participants = nextRound.participants.filter(
+            (winnerId) => winnerId !== exist[0]
+          );
+          nextRound.participants.push(updatedMatch?.winner.toString());
+          nextRound = await nextRound.save({ session });
+        }
+        loserNextRound = nextRound;
+      }
+      responseData = {
+        currentMatch: updatedMatch,
+        nextMatchDetails,
+        nextRound,
+      };
+    } else {
+      responseData = {
+        currentMatch: updatedMatch,
+      };
+    }
+
+    //scheduling next round matches
+
+    let nextRoundDetails = {};
+    let isRoundCompleted = true;
+    currentLoserRound?.matches?.forEach((match) => {
+      if (!match?.winner) {
+        isRoundCompleted = false;
+      }
+    });
+
+    if (isRoundCompleted && !previousWinner) {
+      if (!_.isEmpty(loserNextRound)) {
+        let checkBracket = loserNextRound?.brackets === "losers" ? true : false;
+        let participants = loserNextRound?.participants.length;
+        if (participants % 2 !== 0 && !previousWinner && checkBracket) {
+          let matchesLength = loserNextRound?.matches.length;
+          let nextMatchId = loserNextRound?.matches[0]?.nextMatch?.toString();
+          let lastMathReferID =
+            loserNextRound?.matches[matchesLength - 1]?.nextMatch?.toString();
+          let lastMatchID =
+            loserNextRound?.matches[matchesLength - 1]?._id?.toString();
+          let firstMatchID = loserNextRound?.matches[0]?._id?.toString();
+
+          loserNextRound.matches[0].nextMatch = lastMatchID;
+          loserNextRound.matches[matchesLength - 1].nextMatch = nextMatchId;
+          loserNextRound.matches[matchesLength - 1].matchB = firstMatchID;
+          let firstReferMatchINDX = 0;
+          let nextNextRoundDetails = await tournamentRoundModel
+            .findOne({
+              roundNumber: loserNextRound?.roundNumber + 1,
+              tournamentID: loserNextRound?.tournamentID,
+              formatTypeID: loserNextRound?.formatTypeID,
+              brackets: "losers",
+            })
+            .populate("matches")
+            .session(session);
+
+          if (_.isEmpty(nextNextRoundDetails)) {
+            nextNextRoundDetails = {};
+          } else {
+            nextNextRoundDetails?.matches?.filter((match, index) => {
+              if (match?._id?.toString() === nextMatchId) {
+                firstReferMatchINDX = index;
+                return match;
+              }
+            });
+            if (lastMathReferID) {
+              if (!_.isEmpty(nextNextRoundDetails)) {
+                let referMatchIndex = 0;
+                nextNextRoundDetails?.matches?.filter((match, index) => {
+                  if (match?._id?.toString() === lastMathReferID) {
+                    referMatchIndex = index;
+                    return match;
+                  }
+                });
+                if (
+                  nextNextRoundDetails?.matches[
+                    referMatchIndex
+                  ]?.matchA?.toString() === lastMatchID &&
+                  !previousWinner
+                ) {
+                  nextNextRoundDetails.matches[referMatchIndex].matchA = null;
+                }
+                if (
+                  nextNextRoundDetails?.matches[
+                    referMatchIndex
+                  ]?.matchB?.toString() === lastMatchID &&
+                  !previousWinner
+                ) {
+                  nextNextRoundDetails.matches[referMatchIndex].matchB = null;
+                }
+                nextNextRoundDetails.matches[referMatchIndex] =
+                  await nextNextRoundDetails.matches[referMatchIndex].save({
+                    session,
+                  });
+              }
+            }
+            // replacing first match id with lastMatchID into next round match
+            if (
+              nextNextRoundDetails?.matches[
+                firstReferMatchINDX
+              ]?.matchA?.toString() === firstMatchID
+            ) {
+              nextNextRoundDetails.matches[firstReferMatchINDX].matchA =
+                lastMatchID;
+            }
+            if (
+              nextNextRoundDetails?.matches[
+                firstReferMatchINDX
+              ]?.matchB?.toString() === firstMatchID
+            ) {
+              nextNextRoundDetails.matches[firstReferMatchINDX].matchB =
+                lastMatchID;
+            }
+            nextNextRoundDetails.matches[firstReferMatchINDX] =
+              await nextNextRoundDetails.matches[firstReferMatchINDX].save({
+                session,
+              });
+            loserNextRound.matches[0] =
+              await losersCurrentRoundDetails.matches[0].save({
+                session,
+              });
+            loserNextRound.matches[matchesLength - 1] =
+              await losersCurrentRoundDetails.matches[matchesLength - 1].save({
+                session,
+              });
+          }
+        }
+      }
+    }
+    SuccessResponse.data = responseData;
+    await session.commitTransaction();
+    await session.endSession();
+    return res.status(201).json(SuccessResponse);
+  } catch (error) {
+    await session.abortTransaction();
+    await session.endSession();
+    console.log(
+      "error in updateWinner of double knockout losers bracket : " +
+        error?.message
+    );
+    ErrorResponse.error = new AppError(
+      "error in updateWinner of double knockout losers bracket :" +
+        error?.message,
+      500
+    );
+    return res.status(500).json(ErrorResponse);
+  }
+};
+
 module.exports = {
   updateWinnerForWinnersBracket,
+  updateWinnerForLoserBracket,
 };
