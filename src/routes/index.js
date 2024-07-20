@@ -31,6 +31,7 @@ router.put(
 );
 router.get("/tournaments/getRounds", getRoundsController.getTournamentRounds);
 router.get("/tournaments/getRounds/:roundId", getRoundsController.getRoundById);
+router.get("/tournaments/getRoundDataForFixing/:roundID", getRoundsController.getRoundAndMatchesDataForFixing);
 
 router.put(
   "/tournaments/double/updateWinner/winners",

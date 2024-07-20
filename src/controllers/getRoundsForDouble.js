@@ -72,7 +72,6 @@ const getWinnersBracketsRounds = async (req, res) => {
       brackets : req.body.bracket
     };
     const rounds = await roundModel.find(data).populate({path : "matches" , populate : ["matchA","matchB"]}).populate('participants');
-    // console.log("all rounds data : ", rounds);
     let roundsData = await getRoundsAndMatchesWithParticipants(rounds);
     let responsePayload = [];
     SuccessResponse.data = {
