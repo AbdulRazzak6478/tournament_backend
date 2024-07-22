@@ -10,6 +10,7 @@ const {
   tournamentDoubleController,
   tournamentWinnerUpdateController,
   getDoubleRoundsController,
+  setArrangeTeamsController,
 } = require("../controllers");
 const router = express.Router();
 
@@ -32,6 +33,7 @@ router.put(
 router.get("/tournaments/getRounds", getRoundsController.getTournamentRounds);
 router.get("/tournaments/getRounds/:roundId", getRoundsController.getRoundById);
 router.get("/tournaments/getRoundDataForFixing/:roundID", getRoundsController.getRoundAndMatchesDataForFixing);
+router.put("/tournaments/setTeamsInMatches/:roundID", setArrangeTeamsController.setArrangedTeamsInRound);
 
 router.put(
   "/tournaments/double/updateWinner/winners",
