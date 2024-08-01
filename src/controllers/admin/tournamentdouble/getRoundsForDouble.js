@@ -109,6 +109,4 @@ const getRoundById = async (req, res) => {
   }
 };
 
-module.exports = {
-    getWinnersBracketsRounds,
-};
+module.exports = getWinnersBracketsRounds;

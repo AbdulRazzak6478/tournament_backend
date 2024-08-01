@@ -1,9 +1,7 @@
-// for(let round to rounds){
-//     teamsArr
-//     matches = floor(teamsLength / 2)
-//     filterTeams= exclude Team(length - round);
-//     for(let i = 0; i < matches.length; i++){
-//         team1 = 0 indexed
-//         team2 = last index
-//     }
-// }
+const count = 3;
+const newId = `GBT${(count + 1).toString().padStart(6, '0')}`;
+console.log('id : ',newId);
+// GBT000004
+// // PUT : to recover tournament from the archive section
+// const { tournamentID } = req.params;
+// /api/v2/admin/tournament/recoverTournament/:tournamentID

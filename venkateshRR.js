@@ -1,109 +1,143 @@
-const Tournament = require("../modals/tournament.js");
-const Teams = require("../modals/team.js");
-const Round = require("../modals/rounds.js");
+const Standing = require("../modals/standings.js");
 const Match = require("../modals/match.js");
 
-const createRoundRobin = async (req, res) => {
+const updateWinner = async (req, res) => {
   try {
-    const {
-      tournamentName,
-      sportName,
-      format,
-      noOfParticipants,
-      selectionType,
-      fixingType,
-    } = req.body;
-
-    // Create new tournament document
-    const newTournament = new Tournament({
-      tournamentName,
-      sportName,
-      selectionType,
-      format,
-      noOfParticipants,
-      fixingType,
-    });
-    const savedTournament = await newTournament.save();
-
-    //Creating Teams
-
-    for (let i = 0; i < savedTournament.noOfParticipants; i++) {
-      let newTeam = new Teams({
-        teamName: `Team${i + 1}`,
-        tournamentId: savedTournament._id,
-      });
-      let saveTeam = await newTeam.save();
+    const { matchId, winnerId } = req.params;
+    const findMatch = await Match.findById(matchId);
+    if (!findMatch) {
+      return res.status(400).json({ message: "Match not found" });
     }
-
-    let findAllTeams = await Teams.find({
-      tournamentId: savedTournament._id,
-    });
-
-    const totalRounds = findAllTeams.length - 1;
-    const halfSize = findAllTeams.length / 2;
-    let roundNumber = 1;
-
-    // Initialize schedule
-    let schedule = [];
-
-    // Create schedule
-    // const home = (round + match) % (players.length - 1);
-    for (let round = 0; round < totalRounds; round++) {
-      let roundMatches = [];
-      for (let match = 0; match < halfSize; match++) {
-        let home = findAllTeams[match]._id;
-        let away = findAllTeams[findAllTeams.length - 1 - match]._id;
-
-        roundMatches.push([home, away]);
+    if (findMatch.winner !== null) {
+      if (findMatch.winner.toString() === winnerId.toString()) {
+        return res
+          .status(
+            
+          )
+          .json({ match: findMatch, message: "Match updated successfully 1" });
       }
-      schedule.push(roundMatches);
-      let firstPlayer = findAllTeams.shift();
-      let lastPlayer = findAllTeams.pop();
 
-      findAllTeams.unshift(firstPlayer);
-      findAllTeams.splice(1, 0, lastPlayer);
-    }
+      const findWinner = await Standing.findOne({ team: findMatch.winner });
+      // findWinner.plays -= 1;
+      findWinner.wins -= 1;
+      // findWinner.points -= 10;
+      await findWinner.save();
 
-    console.log("SCHEDULE", schedule);
+      const findLooser = await Standing.findOne({ team: findMatch.looser });
+      // findLooser.plays -= 1;
+      findLooser.losses -= 1;
+      // findLooser.points += 5;
+      await findLooser.save();
 
-    // Create rounds and matches based on the schedule
-    for (let i = 0; i < schedule.length; i++) {
-      let newRound = new Round({
-        tournamentId: savedTournament._id,
-        roundNumber: roundNumber++,
-        matches: [],
-        bracket: "Winners",
-      });
-      let saveRound = await newRound.save();
-      let matchNumber = 1;
-      let matchesIds = [];
+      let updatedMatch = await Match.findByIdAndUpdate(
+        matchId,
+        { winner: winnerId },
+        { runValidators: true, new: true }
+      );
 
-      for (let j = 0; j < schedule[i].length; j++) {
-        let newMatch = new Match({
-          matchNumber: matchNumber++,
-          tournamentId: savedTournament._id,
-          roundId: saveRound._id,
-          team1: schedule[i][j][0],
-          team2: schedule[i][j][1],
-          winner: null,
-          looser: null,
-        });
-        let saveMatch = await newMatch.save();
-        matchesIds.push(saveMatch._id);
+      let looserId;
+
+      if (updatedMatch.winner.toString() === updatedMatch.team1.toString()) {
+        looserId = updatedMatch.team2;
+      } else if (
+        updatedMatch.winner.toString() === updatedMatch.team2.toString()
+      ) {
+        looserId = updatedMatch.team1;
       }
-      saveRound.matches = matchesIds;
-      await saveRound.save();
+
+      if (looserId != "") {
+        updatedMatch = await Match.findByIdAndUpdate(
+          matchId,
+          { looser: looserId },
+          { runValidators: true, new: true }
+        );
+      }
+
+      const findWinnerStanding = await Standing.findOne({
+        team: updatedMatch.winner,
+      });
+
+      findWinnerStanding.wins += 1;
+      // findWinnerStanding.plays += 1;
+      // findWinnerStanding.points += 10;
+
+      await findWinnerStanding.save();
+
+      const findLooserStanding = await Standing.findOne({
+        team: updatedMatch.looser,
+      });
+
+      findLooserStanding.losses += 1;
+      // findLooserStanding.plays += 1;
+      // findLooserStanding.points -= 5;
+
+      await findLooserStanding.save();
+
+      return res
+        .status(201)
+        .json({ match: updatedMatch, message: "Match updated successfully 2" });
     }
 
-    const findAllRoundsWithMatches = await Round.find({
-      tournamentId: savedTournament._id,
-      bracket: "Winners",
-    }).populate({path:"matches",populate:['team1','team2']})
+    let updateWinner = await Match.findByIdAndUpdate(
+      matchId,
+      {
+        winner: winnerId,
+        status: "COMPLETED",
+      },
+      { runValidators: true, new: true }
+    );
 
-    return res.status(201).json({ rounds: findAllRoundsWithMatches });
+    let looser;
+
+    if (updateWinner.winner !== null) {
+      if (updateWinner.winner.toString() === updateWinner.team1.toString()) {
+        looser = updateWinner.team2;
+      } else if (
+        updateWinner.winner.toString() === updateWinner.team2.toString()
+      ) {
+        looser = updateWinner.team1;
+      }
+    }
+
+    if (looser !== "") {
+      updateWinner = await Match.findByIdAndUpdate(
+        matchId,
+        { looser: looser, status: "COMPLETED" },
+        { runValidators: true, new: true }
+      );
+    }
+
+    const findWinner = await Standing.findOne({
+      team: updateWinner.winner,
+    });
+
+    if (!findWinner) {
+      return res.status(400).json({ message: "Winner Standing Not Found" });
+    }
+
+    findWinner.plays += 1;
+    findWinner.wins += 1;
+    // findWinner.points += 10;
+
+    await findWinner.save();
+
+    const findLooser = await Standing.findOne({ team: updateWinner.looser });
+
+    if (!findLooser) {
+      return res.status(400).json({ message: "Looser Standing Not Found" });
+    }
+
+    findLooser.plays += 1;
+    findLooser.losses += 1;
+    // findLooser.points -= 5;
+
+    await findLooser.save();
+
+    return res.status(200).json({ match: updateWinner });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
+    console.log(error.message);
+    res.status(500).json({ message: "internal server error" });
   }
 };
 
-module.exports = createRoundRobin;
+module.exports = updateWinner; 

@@ -37,3 +37,35 @@ Transactions work on live url
 
 Note : after commit Transactions there should be no abortTransactions
 ```
+
+Zoho - BACKUP VERIFICATION CODES
+
+
+Points to note
+--------------
+# Each code can be used only once.
+# Do not share these codes with anyone.
+# If you have used up all your codes or lost them, you can always generate a new set of codes.
+# Whenever you generate a new set of codes, the old unused codes will become invalid.
+
+
+Generated codes
+---------------
+Username: abdulrazzak@skygoalnext.com
+Generated on: Jul 31, 2024 13:19 (GMT +05:30)
+
+
+ 1. xr3u t9so t1dg
+ 2. hft2 zhfw jz1c
+ 3. xdbq zwq2 6qd8
+ 4. qk2r 48mc l2oc
+ 5. hqk7 9qwh cxib
+
+
+Help article links
+------------------
+
+# How to recover your account using these codes: https://zurl.to/mfa_enfor_bvc_rec
+# How to generate new codes: https://zurl.to/mfa_enfor_bvc_gen
+
+https://workplace.zoho.in/#mail_app/mail/views/all
