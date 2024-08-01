@@ -69,7 +69,6 @@ router.put(
   updateTournamentRoundMatchWinner
 );
 
-// router.get("/info", InfoController.info);
 // router.post("/users", playerController.createPlayer);
 // router.post("/teams", teamController.createTeam);
 // router.post("/tournaments", tournamentController.createTournament);
