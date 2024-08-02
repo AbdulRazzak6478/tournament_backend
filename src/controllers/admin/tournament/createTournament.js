@@ -6,6 +6,7 @@ const {
 const Yup = require("yup");
 const mongoose = require("mongoose");
 const tournamentKnockoutFormatCreation = require("./knockout/createKnockoutFormat.js");
+const createDoubleEliminationTournament = require("./doubleKnockout/tournamentDoubleFormatCreation.js");
 
 // Validation schema using Yup
 const tournamentValidationSchema = Yup.object({
@@ -65,6 +66,7 @@ const createTournament = catchAsync(async (req, res) => {
       fixingType,
     } = req.body;
 
+    console.log('participants : ',participants,typeof participants);
     if (!isValidObjectId(mainCategoryID)) {
       return res
         .status(400)
@@ -184,9 +186,12 @@ const createTournament = catchAsync(async (req, res) => {
             )
           );
       }
-      responseData = {
-        message: "work in progress for double_elimination_bracket",
-      };
+      console.log('before in double');
+      responseData = await createDoubleEliminationTournament(data);
+      console.log('after in double');
+      // responseData = {
+      //   message: "work in progress for double_elimination_bracket",
+      // };
     }
     if (data.formatType.toLowerCase() === "round_robbin") {
       if (

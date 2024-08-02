@@ -5,16 +5,20 @@ const knockoutSchema = new mongoose.Schema(
     tournamentID: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "tournament",
+      required : true,
     },
-    formatType: {
+    formatName: {
       type: String,
+      required :true,
     },
     fixingType: {
       type: String,
+      required : true,
     },
     gameType: {
       type: String,
       enum: ["team", "individual"],
+      required : true,
     },
     totalWinnersRounds: {
       type: Number,
@@ -43,43 +47,45 @@ const knockoutSchema = new mongoose.Schema(
     winnersRoundsIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "round",
+        ref: "tournamentRound",
       },
     ],
     losersRoundsIds: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "round",
+        ref: "tournamentRound",
       },
     ],
     finalRoundId: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "round",
+        ref: "tournamentRound",
       },
     ],
     totalTeams:{
         type: Number,
+        default : null,
     },
     totalParticipants:{
         type: Number,
+        default : null,
     },
     teams: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "team",
+        ref: "tournamentTeam",
       },
     ],
     participants: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "player",
+        ref: "tournamentPlayer",
       },
     ],
     players: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "player",
+        ref: "tournamentPlayer",
       },
     ],
   },
@@ -88,21 +94,3 @@ const knockoutSchema = new mongoose.Schema(
 
 module.exports = mongoose.model("doubleKnockout", knockoutSchema);
 
-// double_knockout_schema [icon: user, color: gray] {
-//     id ObjectId()
-//     tournamentID ObjectId()
-//     formatName  string
-//     fixingType string
-//     gameType string
-//     WinnersRounds integer
-//     losersRounds integer
-//     WinnersRoundsNames names []
-//     losersRoundsNames names []
-//     finalRoundName String
-//     winnersRoundsIds  Rounds [ObjectId()]
-//     losersRoundsIds  Rounds [ObjectId()]
-//     finalRoundId Rounds ObjectId()
-//     teams Teams [ObjectId()]
-//     participents players [ObjectId() ]
-//     players players [ObjectId() ]
-// }
