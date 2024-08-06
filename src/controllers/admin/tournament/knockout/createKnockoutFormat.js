@@ -18,6 +18,71 @@ const generateTournamentId = async ()=>{
   return newId;
 }
 
+
+const getRoundsNamesForBrackets = (bracketData) => {
+  let roundName = "";
+  for (let i = 1; i <= bracketData.length; i++) {
+    if (i === bracketData.length) {
+      roundName = "Final";
+    } else {
+      roundName =
+        i === bracketData.length - 1
+          ? "Semi Final"
+          : i === bracketData.length - 2
+          ? "Quarter Final"
+          : `Qualification Round ${i}`;
+    }
+    bracketData[i - 1].roundName = roundName;
+  }
+  return bracketData;
+};
+
+const getBracketsRoundsAndMatches = (participants) => {
+  try {
+    let totalRounds = Math.ceil(Math.log2(participants));
+    console.log("participants : ", participants);
+    console.log("total : ", totalRounds);
+
+    let tourTeams = participants;
+    const roundMatchMap = new Map();
+    const roundWinnerMap = new Map();
+    let winnersBrackets = [];
+    for (let i = 1; i <= totalRounds; i++) {
+      let matches = 0;
+      let winners = 0;
+      let losers = 0;
+      if (tourTeams % 2 === 0) {
+        matches = Math.round(tourTeams / 2);
+        losers = Math.floor(tourTeams / 2);
+        winners = Math.round(tourTeams / 2);
+        roundMatchMap.set(i, matches);
+        tourTeams = Math.round(tourTeams / 2);
+      } else {
+        matches = Math.round(tourTeams / 2);
+        losers = Math.floor(tourTeams / 2);
+        winners = Math.round(tourTeams / 2);
+        roundMatchMap.set(i, matches);
+        tourTeams = Math.round(tourTeams / 2);
+      }
+      let winnerObj = {
+        roundNumber: i,
+        matches,
+        winners,
+        losers,
+      };
+      winnersBrackets.push(winnerObj);
+    }
+    winnersBrackets = getRoundsNamesForBrackets(winnersBrackets);
+    console.log("winners brackets data : ", winnersBrackets);
+    return winnersBrackets;
+  } catch (error) {
+    throw new Error(
+      ",Error in get brackets rounds and matches data " + error?.message
+    );
+  }
+};
+
+
 const arrangingTeamsBasedOnFixingType = (fixingType, teams) => {
   try {
     let arrangedTeams = [];
@@ -85,12 +150,13 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
     // 13.Storing all rounds ids into knockout format and knockout into tournament
     // 14. returning response of tournament;
 
+
     // STEP 1
     const data = {
       mainCategoryID: dataPayload.mainCategoryID,
       subCategoryID: dataPayload.subCategoryID,
       gameType: dataPayload.gameType,
-      participants: dataPayload.participants,
+      participants: +dataPayload.participants,
       formatType: dataPayload.formatType,
       sport: dataPayload.sport,
       fixingType: dataPayload.fixingType,
@@ -112,14 +178,9 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
     // Getting Random string for storing it into tournament => tournamentID  ||  unique to tournament
     let tournamentId = await generateTournamentId();
 
-    // STEP 3
-    // Getting number of rounds possible in tournament
-    const totalRounds = Math.ceil(Math.log2(data.participants)); // possible number of rounds
-    const roundNames = [];
-
-    // storing rounds names into roundsNames array for reference
-    // Getting rounds Names
-    let roundType = "";
+    let totalRounds = Math.ceil(Math.log2(data.participants));
+    let roundNames = [];
+    let roundType = '';
     for (let i = 1; i <= totalRounds; i++) {
       if (i === totalRounds) {
         roundNames.push("Final");
@@ -128,13 +189,12 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
           i === totalRounds - 1
             ? "Semi Final"
             : i === totalRounds - 2
-              ? "Quarter Final"
-              : `Qualification Round ${i}`;
-        roundNames.push(roundType); // storing rounds names into roundsNames array for reference
+            ? "Quarter Final"
+            : `Qualification Round ${i}`;
+        roundNames.push(roundType);
       }
     }
-
-    // STEP 4
+    // STEP 3
     // tournament data Payload
     const tournamentData = {
       tournamentID: tournamentId,
@@ -166,7 +226,7 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
     const uniqueId = await tournamentIdModel.create([{tournamentID : tournamentId}],{session : session});
     console.log('tournament Unique id : ',uniqueId);
 
-    // STEP 5 :
+    // STEP 4 :
     let participantsIds = [];
     const tourId = tournament?._id?.toString();
     if (data.gameType === "team") {
@@ -221,7 +281,7 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
       participantsIds = playersIds;
     }
 
-    // STEP 6
+    // STEP 5
     // creating knockout section
     // knockoutFormatData Payload
     const formatData = {
@@ -246,41 +306,26 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
       session: session,
     });
     if (_.isEmpty(tournamentFormat)) {
-      throw new Error(" => not able to create tournament knockout format ");
+      throw new Error(",not able to create tournament knockout format");
     }
     tournamentFormat = tournamentFormat[0];
 
-    // STEP 7
+    // STEP 6
     // preparing rounds data and number of matches possible in each round and storing them in roundsData
     let roundsData = [];
-    let roundMatchMap = new Map();
-    let tourTeams = data.participants;
-    for (let i = 1; i <= totalRounds; i++) {
-      let roundObj = {
-        tournamentID: tournament?._id?.toString(),
-        formatTypeID: tournamentFormat?._id?.toString(),
-        fixingType: data.fixingType,
-        gameType: data.gameType,
-        roundNumber: i,
-        roundName: roundNames[i - 1],
-        // teams: teamsIds,
-      };
-      if (tourTeams % 2 !== 0) {
-        // if teams length is ODD
-        let matches = Math.round(tourTeams / 2);
-        tourTeams = Math.floor(tourTeams / 2);
-        roundMatchMap.set(i, matches);
-        roundObj.matches = roundMatchMap.get(i);
-        roundsData.push(roundObj);
-      } else if (tourTeams % 2 === 0) {
-        // if teams length is EVEN
-        let matches = Math.round(tourTeams / 2);
-        tourTeams = Math.floor(tourTeams / 2);
-        roundMatchMap.set(i, matches);
-        roundObj.matches = roundMatchMap.get(i);
-        roundsData.push(roundObj);
+    roundsData = getBracketsRoundsAndMatches(data.participants);
+
+    // STEP 7 
+    // Forming rounds Data;
+    roundsData = roundsData?.map((round)=>{
+      return {
+        roundNumber : round?.roundNumber,
+        roundName : round?.roundName,
+        matches : round?.matches,
+        tournamentID : tourId,
+        formatTypeID : tournamentFormat?._id?.toString(),
       }
-    }
+    });
 
     // STEP : 8
     // Iterating over rounds data and creating rounds and matches respective to rounds and storing them
@@ -305,7 +350,7 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
       });
       if (_.isEmpty(round)) {
         throw new Error(
-          " => not able to create round in tournament knockout section "
+          ",not able to create round in tournament knockout section "
         );
       }
       round = round[0];
@@ -336,7 +381,7 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
 
       if (_.isEmpty(matches)) {
         throw new Error(
-          " => not able to create matches for the respective round"
+          ",not able to create matches for the respective round"
         );
       }
       matchIds = matches?.map((match) => match?._id?.toString());
@@ -358,7 +403,7 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
       .populate("matches")
       .session(session);
     if (_.isEmpty(allRoundsData)) {
-      throw new Error(" => not able to fetch rounds and matches data");
+      throw new Error(",not able to fetch rounds and matches data");
     }
     // Generating array upto rounds length to iterate
     let rounds = Array.from(
@@ -440,72 +485,72 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
     // STEP 11
     // handling winners round one for odd match also updating its references into next matches and round
     allRoundsData.sort((round1,round2)=>round1?.roundNumber - round2?.roundNumber);
-    let participants = allRoundsData[0].participants.length;
-    if (participants % 2 !== 0 && allRoundsData[0].roundNumber === 1) {
-      let matchesLength = allRoundsData[0]?.matches.length;
-      let nextMatchId = allRoundsData[0]?.matches[0]?.nextMatch?.toString();
-      let lastMathReferID =
-        allRoundsData[0]?.matches[matchesLength - 1]?.nextMatch?.toString();
-      let lastMatchID =
-        allRoundsData[0]?.matches[matchesLength - 1]?._id?.toString();
-      let firstMatchID = allRoundsData[0]?.matches[0]?._id?.toString();
-      allRoundsData[0].matches[0].nextMatch = lastMatchID;
-      allRoundsData[0].matches[matchesLength - 1].nextMatch = nextMatchId;
-      allRoundsData[0].matches[matchesLength - 1].matchB = firstMatchID;
+    // let participants = allRoundsData[0].participants.length;
+    // if (participants % 2 !== 0 && allRoundsData[0].roundNumber === 1) {
+    //   let matchesLength = allRoundsData[0]?.matches.length;
+    //   let nextMatchId = allRoundsData[0]?.matches[0]?.nextMatch?.toString();
+    //   let lastMathReferID =
+    //     allRoundsData[0]?.matches[matchesLength - 1]?.nextMatch?.toString();
+    //   let lastMatchID =
+    //     allRoundsData[0]?.matches[matchesLength - 1]?._id?.toString();
+    //   let firstMatchID = allRoundsData[0]?.matches[0]?._id?.toString();
+    //   allRoundsData[0].matches[0].nextMatch = lastMatchID;
+    //   allRoundsData[0].matches[matchesLength - 1].nextMatch = nextMatchId;
+    //   allRoundsData[0].matches[matchesLength - 1].matchB = firstMatchID;
 
-      let firstReferMatchINDX = 0;
-      allRoundsData[1]?.matches?.filter((match, index) => {
-        if (match?._id?.toString() === firstMatchID) {
-          firstReferMatchINDX = index;
-          return match;
-        }
-      });
-      if (lastMathReferID) {
-        let referMatchIndex = 0;
-        allRoundsData[1]?.matches?.filter((match, index) => {
-          if (match?._id?.toString() === lastMathReferID) {
-            referMatchIndex = index;
-            return match;
-          }
-        });
-        if (
-          allRoundsData[1]?.matches[referMatchIndex]?.matchA?.toString() ===
-          lastMatchID
-        ) {
-          allRoundsData[1].matches[referMatchIndex].matchA = null;
-        }
-        if (
-          allRoundsData[1]?.matches[referMatchIndex]?.matchB?.toString() ===
-          lastMatchID
-        ) {
-          allRoundsData[1].matches[referMatchIndex].matchB = null;
-        }
-        allRoundsData[1].matches[referMatchIndex] =
-          await allRoundsData[1].matches[referMatchIndex].save({ session });
-      }
+    //   let firstReferMatchINDX = 0;
+    //   allRoundsData[1]?.matches?.filter((match, index) => {
+    //     if (match?._id?.toString() === firstMatchID) {
+    //       firstReferMatchINDX = index;
+    //       return match;
+    //     }
+    //   });
+    //   if (lastMathReferID) {
+    //     let referMatchIndex = 0;
+    //     allRoundsData[1]?.matches?.filter((match, index) => {
+    //       if (match?._id?.toString() === lastMathReferID) {
+    //         referMatchIndex = index;
+    //         return match;
+    //       }
+    //     });
+    //     if (
+    //       allRoundsData[1]?.matches[referMatchIndex]?.matchA?.toString() ===
+    //       lastMatchID
+    //     ) {
+    //       allRoundsData[1].matches[referMatchIndex].matchA = null;
+    //     }
+    //     if (
+    //       allRoundsData[1]?.matches[referMatchIndex]?.matchB?.toString() ===
+    //       lastMatchID
+    //     ) {
+    //       allRoundsData[1].matches[referMatchIndex].matchB = null;
+    //     }
+    //     allRoundsData[1].matches[referMatchIndex] =
+    //       await allRoundsData[1].matches[referMatchIndex].save({ session });
+    //   }
 
-      // replacing first match id with lastMatchID
-      if (
-        allRoundsData[1]?.matches[firstReferMatchINDX]?.matchA?.toString() ===
-        firstMatchID
-      ) {
-        allRoundsData[1].matches[firstReferMatchINDX].matchA = lastMatchID;
-      }
-      if (
-        allRoundsData[1]?.matches[firstReferMatchINDX]?.matchB?.toString() ===
-        firstMatchID
-      ) {
-        allRoundsData[1].matches[firstReferMatchINDX].matchB = lastMatchID;
-      }
-      allRoundsData[1].matches[firstReferMatchINDX] =
-        await allRoundsData[1].matches[firstReferMatchINDX].save({ session });
+    //   // replacing first match id with lastMatchID
+    //   if (
+    //     allRoundsData[1]?.matches[firstReferMatchINDX]?.matchA?.toString() ===
+    //     firstMatchID
+    //   ) {
+    //     allRoundsData[1].matches[firstReferMatchINDX].matchA = lastMatchID;
+    //   }
+    //   if (
+    //     allRoundsData[1]?.matches[firstReferMatchINDX]?.matchB?.toString() ===
+    //     firstMatchID
+    //   ) {
+    //     allRoundsData[1].matches[firstReferMatchINDX].matchB = lastMatchID;
+    //   }
+    //   allRoundsData[1].matches[firstReferMatchINDX] =
+    //     await allRoundsData[1].matches[firstReferMatchINDX].save({ session });
 
-      allRoundsData[0].matches[0] = await allRoundsData[0].matches[0].save({
-        session,
-      });
-      allRoundsData[0].matches[matchesLength - 1] =
-        await allRoundsData[0].matches[matchesLength - 1].save({ session });
-    }
+    //   allRoundsData[0].matches[0] = await allRoundsData[0].matches[0].save({
+    //     session,
+    //   });
+    //   allRoundsData[0].matches[matchesLength - 1] =
+    //     await allRoundsData[0].matches[matchesLength - 1].save({ session });
+    // }
 
     // STEP 12
     // arranging teams in matches based on fixingType and also handling if 1 team left in 1st round to happen match
@@ -519,7 +564,7 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
       .session(session);
     if (_.isEmpty(allRoundsAndMatches)) {
       throw new Error(
-        " => not able to fetch rounds & matches data tournamentID and formatTypeID"
+        ",not able to fetch rounds & matches data tournamentID and formatTypeID"
       );
     }
 
@@ -552,7 +597,7 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
     const allRounds = allRoundsAndMatches;
     if (_.isEmpty(allRounds)) {
       throw new Error(
-        " => error in fetching rounds and matches to assign ids to tournament Format"
+        ",error in fetching rounds and matches to assign ids to tournament Format"
       );
     }
     let roundsIds = allRounds?.map((round) => round?._id?.toString());

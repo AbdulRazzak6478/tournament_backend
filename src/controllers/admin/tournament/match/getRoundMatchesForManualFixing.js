@@ -69,22 +69,6 @@ const gettingRoundMatchesForManualFixing = catchAsync(async (req, res) => {
         .status(400)
         .json(failed_response(400, "not able to find the round", {}, false));
     }
-
-    if (roundData?.fixingType.toLowerCase() !== "manual") {
-      return res
-        .status(400)
-        .json(
-          failed_response(
-            400,
-            " not able to arrange the participants, tournament fixingType is : " +
-              roundData?.fixingType +
-              " , not manual",
-            {},
-            false
-          )
-        );
-    }
-
     if (roundData?.winners.length > 0) {
       return res
         .status(400)
@@ -99,22 +83,26 @@ const gettingRoundMatchesForManualFixing = catchAsync(async (req, res) => {
     }
     if (roundData?.roundNumber > 1) {
       let previousRound = await tournamentRoundModel
-        .findOne({ roundNumber: roundData?.roundNumber - 1, tournamentID : roundData?.tournamentID })
+        .findOne({
+          roundNumber: roundData?.roundNumber - 1,
+          tournamentID: roundData?.tournamentID,
+        })
         .populate(["matches"]);
-      if(_.isEmpty(previousRound)){
+      if (_.isEmpty(previousRound)) {
         previousRound = null;
       }
       if (!previousRound?.isCompleted) {
         return res
-        .status(400)
-        .json(
-          failed_response(
-            400,
-            "Previous round not competed to arrange participants into "+roundData?.roundName,
-            {},
-            false
-          )
-        );
+          .status(400)
+          .json(
+            failed_response(
+              400,
+              "Previous round not completed to arrange participants into " +
+                roundData?.roundName,
+              {},
+              false
+            )
+          );
       }
     }
     const participants = await getParticipants(
@@ -139,7 +127,7 @@ const gettingRoundMatchesForManualFixing = catchAsync(async (req, res) => {
     });
 
     let responsePayload = {
-      name : roundData?.roundName,
+      name: roundData?.roundName,
       participantsLength: participants?.length,
       participants,
       matchesLength: roundMatches?.length,

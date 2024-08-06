@@ -54,6 +54,68 @@ const arrangingTeamsBasedOnFixingType = (fixingType, teams) => {
   }
 };
 
+const getRoundsNamesForBrackets = (bracketData) => {
+  let roundName = "";
+  for (let i = 1; i <= bracketData.length; i++) {
+    if (i === bracketData.length) {
+      roundName = "Final";
+    } else {
+      roundName =
+        i === bracketData.length - 1
+          ? "Semi Final"
+          : i === bracketData.length - 2
+            ? "Quarter Final"
+            : `Qualification Round ${i}`;
+    }
+    bracketData[i - 1].roundName = roundName;
+  }
+  return bracketData;
+};
+
+const getBracketsRoundsAndMatches = (participants) => {
+  try {
+    let totalRounds = Math.ceil(Math.log2(participants));
+    console.log("participants : ", participants);
+    console.log("total : ", totalRounds);
+
+    let tourTeams = participants;
+    const roundMatchMap = new Map();
+    let winnersBrackets = [];
+    for (let i = 1; i <= totalRounds; i++) {
+      let matches = 0;
+      let winners = 0;
+      let losers = 0;
+      if (tourTeams % 2 === 0) {
+        matches = Math.round(tourTeams / 2);
+        losers = Math.floor(tourTeams / 2);
+        winners = Math.round(tourTeams / 2);
+        roundMatchMap.set(i, matches);
+        tourTeams = Math.round(tourTeams / 2);
+      } else {
+        matches = Math.round(tourTeams / 2);
+        losers = Math.floor(tourTeams / 2);
+        winners = Math.round(tourTeams / 2);
+        roundMatchMap.set(i, matches);
+        tourTeams = Math.round(tourTeams / 2);
+      }
+      let winnerObj = {
+        roundNumber: i,
+        matches,
+        winners,
+        losers,
+      };
+      winnersBrackets.push(winnerObj);
+    }
+    winnersBrackets = getRoundsNamesForBrackets(winnersBrackets);
+    console.log("winners brackets data : ", winnersBrackets);
+    return winnersBrackets;
+  } catch (error) {
+    throw new Error(
+      ",Error in get brackets rounds and matches data " + error?.message
+    );
+  }
+};
+
 const addParticipantInKnockoutFormatAndReArrangeTournament = async (
   tournament,
   participantName
@@ -74,7 +136,7 @@ const addParticipantInKnockoutFormatAndReArrangeTournament = async (
       isWinnerDeclared = true;
     }
     if (isWinnerDeclared) {
-      throw new Error(",tournament started , cannot add participants");
+      throw new Error(",tournament started cannot add participants");
     }
 
     // deleting existing rounds and there tournament matches
@@ -114,9 +176,7 @@ const addParticipantInKnockoutFormatAndReArrangeTournament = async (
         .find({ tournamentID: tourID })
         .session(session);
       if (_.isEmpty(teams)) {
-        throw new Error(
-          ",Error occur in fetching teams in knockout section"
-        );
+        throw new Error(",Error occur in fetching teams in knockout section");
       }
       allParticipantsIds = teams?.map((team) => team?._id?.toString());
     }
@@ -135,9 +195,7 @@ const addParticipantInKnockoutFormatAndReArrangeTournament = async (
         .find({ tournamentID: tourID })
         .session(session);
       if (_.isEmpty(players)) {
-        throw new Error(
-          ",Error occur in fetching players in knockout section"
-        );
+        throw new Error(",Error occur in fetching players in knockout section");
       }
       allParticipantsIds = players?.map((team) => team?._id?.toString());
     }
@@ -147,8 +205,8 @@ const addParticipantInKnockoutFormatAndReArrangeTournament = async (
     const totalRounds = Math.ceil(Math.log2(allParticipantsIds.length)); // possible number of rounds
     const roundNames = [];
 
-    // storing rounds names into roundsNames array for reference
-    // Getting rounds Names
+    // // storing rounds names into roundsNames array for reference
+    // // Getting rounds Names
     let roundType = "";
     for (let i = 1; i <= totalRounds; i++) {
       if (i === totalRounds) {
@@ -163,40 +221,20 @@ const addParticipantInKnockoutFormatAndReArrangeTournament = async (
         roundNames.push(roundType); // storing rounds names into roundsNames array for reference
       }
     }
+    // // preparing rounds data and number of matches possible in each round and storing them in roundsData
 
-    // STEP 7
-    // preparing rounds data and number of matches possible in each round and storing them in roundsData
-    let roundsData = [];
-    let roundMatchMap = new Map();
-    let tourTeams = allParticipantsIds.length;
-    for (let i = 1; i <= totalRounds; i++) {
-      let roundObj = {
-        tournamentID: tournamentDetails?._id?.toString(),
+    let roundsData = getBracketsRoundsAndMatches(allParticipantsIds.length);
+    // Forming rounds Data;
+    roundsData = roundsData?.map((round) => {
+      return {
+        roundNumber: round?.roundNumber,
+        roundName: round?.roundName,
+        matches: round?.matches,
+        tournamentID: tourID,
         formatTypeID: tournamentKnockoutDetails?._id?.toString(),
-        fixingType: tournamentDetails?.fixingType,
-        gameType: tournamentDetails.gameType,
-        roundNumber: i,
-        roundName: roundNames[i - 1],
-        // teams: teamsIds,
       };
-      if (tourTeams % 2 !== 0) {
-        // if teams length is ODD
-        let matches = Math.round(tourTeams / 2);
-        tourTeams = Math.floor(tourTeams / 2);
-        roundMatchMap.set(i, matches);
-        roundObj.matches = roundMatchMap.get(i);
-        roundsData.push(roundObj);
-      } else if (tourTeams % 2 === 0) {
-        // if teams length is EVEN
-        let matches = Math.round(tourTeams / 2);
-        tourTeams = Math.floor(tourTeams / 2);
-        roundMatchMap.set(i, matches);
-        roundObj.matches = roundMatchMap.get(i);
-        roundsData.push(roundObj);
-      }
-    }
+    });
 
-    // STEP : 8
     // Iterating over rounds data and creating rounds and matches respective to rounds and storing them
 
     for (let roundData of roundsData) {
@@ -219,7 +257,7 @@ const addParticipantInKnockoutFormatAndReArrangeTournament = async (
       });
       if (_.isEmpty(round)) {
         throw new Error(
-          " => not able to create round in tournament knockout section "
+          ",not able to create round in tournament knockout section "
         );
       }
       round = round[0];
@@ -249,9 +287,7 @@ const addParticipantInKnockoutFormatAndReArrangeTournament = async (
       }); // creating matches
 
       if (_.isEmpty(matches)) {
-        throw new Error(
-          " => not able to create matches for the respective round"
-        );
+        throw new Error(",not able to create matches for the respective round");
       }
       matchIds = matches?.map((match) => match?._id?.toString());
       round?.matches.push(...matchIds); // storing matches ids
@@ -272,7 +308,7 @@ const addParticipantInKnockoutFormatAndReArrangeTournament = async (
       .populate("matches")
       .session(session);
     if (_.isEmpty(allRoundsData)) {
-      throw new Error(" => not able to fetch rounds and matches data");
+      throw new Error(",not able to fetch rounds and matches data");
     }
     // Generating array upto rounds length to iterate
     let rounds = Array.from(
@@ -352,75 +388,6 @@ const addParticipantInKnockoutFormatAndReArrangeTournament = async (
     }
 
     // STEP 11
-    // handling winners round one for odd match also updating its references into next matches and round
-    let participants = allRoundsData[0].participants.length;
-    if (participants % 2 !== 0 && allRoundsData[0].roundNumber === 1) {
-      let matchesLength = allRoundsData[0]?.matches.length;
-      let nextMatchId = allRoundsData[0]?.matches[0]?.nextMatch?.toString();
-      let lastMathReferID =
-        allRoundsData[0]?.matches[matchesLength - 1]?.nextMatch?.toString();
-      let lastMatchID =
-        allRoundsData[0]?.matches[matchesLength - 1]?._id?.toString();
-      let firstMatchID = allRoundsData[0]?.matches[0]?._id?.toString();
-      allRoundsData[0].matches[0].nextMatch = lastMatchID;
-      allRoundsData[0].matches[matchesLength - 1].nextMatch = nextMatchId;
-      allRoundsData[0].matches[matchesLength - 1].matchB = firstMatchID;
-
-      let firstReferMatchINDX = 0;
-      allRoundsData[1]?.matches?.filter((match, index) => {
-        if (match?._id?.toString() === firstMatchID) {
-          firstReferMatchINDX = index;
-          return match;
-        }
-      });
-      if (lastMathReferID) {
-        let referMatchIndex = 0;
-        allRoundsData[1]?.matches?.filter((match, index) => {
-          if (match?._id?.toString() === lastMathReferID) {
-            referMatchIndex = index;
-            return match;
-          }
-        });
-        if (
-          allRoundsData[1]?.matches[referMatchIndex]?.matchA?.toString() ===
-          lastMatchID
-        ) {
-          allRoundsData[1].matches[referMatchIndex].matchA = null;
-        }
-        if (
-          allRoundsData[1]?.matches[referMatchIndex]?.matchB?.toString() ===
-          lastMatchID
-        ) {
-          allRoundsData[1].matches[referMatchIndex].matchB = null;
-        }
-        allRoundsData[1].matches[referMatchIndex] =
-          await allRoundsData[1].matches[referMatchIndex].save({ session });
-      }
-
-      // replacing first match id with lastMatchID
-      if (
-        allRoundsData[1]?.matches[firstReferMatchINDX]?.matchA?.toString() ===
-        firstMatchID
-      ) {
-        allRoundsData[1].matches[firstReferMatchINDX].matchA = lastMatchID;
-      }
-      if (
-        allRoundsData[1]?.matches[firstReferMatchINDX]?.matchB?.toString() ===
-        firstMatchID
-      ) {
-        allRoundsData[1].matches[firstReferMatchINDX].matchB = lastMatchID;
-      }
-      allRoundsData[1].matches[firstReferMatchINDX] =
-        await allRoundsData[1].matches[firstReferMatchINDX].save({ session });
-
-      allRoundsData[0].matches[0] = await allRoundsData[0].matches[0].save({
-        session,
-      });
-      allRoundsData[0].matches[matchesLength - 1] =
-        await allRoundsData[0].matches[matchesLength - 1].save({ session });
-    }
-
-    // STEP 12
     // arranging teams in matches based on fixingType and also handling if 1 team left in 1st round to happen match
 
     const allRoundsAndMatches = await tournamentRoundModel
@@ -507,8 +474,7 @@ const addParticipantInKnockoutFormatAndReArrangeTournament = async (
     await session.endSession();
     console.log(error?.message);
     throw new Error(
-      ",Error in adding new participant in knockout format :" +
-        error?.message
+      ",Error in adding new participant in knockout format :" + error?.message
     );
   }
 };

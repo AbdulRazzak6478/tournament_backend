@@ -26,7 +26,7 @@ const getRoundsAndMatchesWithParticipants = async (rounds) => {
     if (_.isEmpty(participantsDetails)) {
       participantsDetails = [];
     }
-    
+
     let participantsMap = new Map();
     participantsDetails?.map((participant) => {
       participantsMap.set(participant?._id?.toString(), participant?.name);
@@ -42,43 +42,44 @@ const getRoundsAndMatchesWithParticipants = async (rounds) => {
           winA = match?.matchA?.bracket === bracketCheck ? "Winner" : "Loser";
           winB = match?.matchA?.bracket === bracketCheck ? "Winner" : "Loser";
         } else if (bracketCheck === "Final Bracket") {
-          winA = match?.matchA?.bracket === bracketCheck ? "Winner" : "Loser";
-          winB = match?.matchA?.bracket === bracketCheck ? "Winner" : "Loser";
+          winA = match?.matchA?.bracket === bracketCheck ? "Winner" : "Winner";
+          winB = match?.matchA?.bracket === bracketCheck ? "Winner" : "Winner";
         }
         const matchA = match?.matchA?.name
           ? winA + " From " + match?.matchA?.name
-          : "No Team";
+          : "";
         const matchB = match?.matchB?.name
           ? winB + " From " + match?.matchB?.name
-          : "No Team";
+          : "";
         const participantA = match?.teamA?.toString()
           ? participantsMap.get(match?.teamA?.toString())
           : matchA;
         const participantB = match?.teamB?.toString()
           ? participantsMap.get(match?.teamB?.toString())
           : matchB;
-          console.log('venue : ',match?.venueID);
+        console.log("venue : ", match?.venueID);
         return {
           id: match?._id?.toString(),
           name: match?.name,
-          participantA_Id : match?.teamA?.toString(),
+          participantA_Id: match?.teamA?.toString(),
           participantA: participantA,
-          participantB_Id : match?.teamB?.toString(),
+          participantB_Id: match?.teamB?.toString(),
           participantB: participantB,
           scoreA: match?.scoreA,
           scoreB: match?.scoreB,
-          dateOfPlay : match?.dateOfPlay,
-          timing : match?.timing,
+          dateOfPlay: match?.dateOfPlay,
+          timing: match?.timing,
+          winnerID: match?.winner ? match?.winner?.toString() : null,
           winner: match?.winner?.toString()
             ? participantsMap.get(match?.winner?.toString())
             : null,
-          status : match?.status,
-          venue : {
-            id : match?.venueID?._id?.toString(),
-            name : match?.venueID?.venueClubId?.ClubName,
-            location : match?.venueID?.venueClubId?.location_operating,
-            city : match?.venueID?.city,
-          }
+          status: match?.status,
+          venue: {
+            id: match?.venueID?._id?.toString(),
+            name: match?.venueID?.venueClubId?.ClubName,
+            location: match?.venueID?.venueClubId?.location_operating,
+            city: match?.venueID?.city,
+          },
         };
       });
       return {
@@ -112,19 +113,19 @@ const getAllRoundsAndMatchesOfFormat = catchAsync(async (req, res) => {
     //     .status(400)
     //     .json(failed_response(400, "Pass an valid formatTypeID ", {}, false));
     // }
-    // const brackets = ["winners", "losers", "Final bracket"];
-    // if (!brackets.includes(req.body.bracket)) {
-    //   return res
-    //     .status(400)
-    //     .json(
-    //       failed_response(
-    //         400,
-    //         "Pass a bracket of round like : winners or losers or Final bracket",
-    //         {},
-    //         false
-    //       )
-    //     );
-    // }
+    const brackets = ["winners", "losers", "Final Bracket"];
+    if (!brackets.includes(req.body.bracket)) {
+      return res
+        .status(400)
+        .json(
+          failed_response(
+            400,
+            "Pass a bracket of round like : winners or losers or Final Bracket",
+            {},
+            false
+          )
+        );
+    }
     const tournament = await tournamentModel.findOne({
       tournamentID: tournamentID,
     });
@@ -136,17 +137,17 @@ const getAllRoundsAndMatchesOfFormat = catchAsync(async (req, res) => {
     const data = {
       tournamentID: tournament?._id?.toString(),
       formatTypeID: tournament?.formatID?.toString(),
-      brackets: "winners",
+      brackets: req.body.bracket,
     };
-    console.log('before venue');
+    console.log("before venue");
     let rounds = await tournamentRoundModel
-    .find({ tournamentID: data.tournamentID, brackets: data.brackets })
-    .populate({ path: "matches", populate: ["matchA", "matchB",{path : 'venueID' , populate : 'venueClubId'}] })
-    .populate("participants");
+      .find({ tournamentID: data.tournamentID, brackets: data.brackets })
+      .populate({ path: "matches", populate: ["matchA", "matchB"] })
+      .populate("participants");
     if (_.isEmpty(rounds)) {
       rounds = [];
     }
-    console.log('after venue');
+    console.log("after venue");
     //sorting rounds based on round number
     rounds.sort((round1, round2) => round1?.roundNumber - round2?.roundNumber);
     let roundsData = await getRoundsAndMatchesWithParticipants(rounds);

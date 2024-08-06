@@ -45,62 +45,51 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
     };
     const match = await tournamentMatchModel
       .findById(matchID)
-      .populate(["tournamentID","matchA", "matchB"])
+      .populate(["tournamentID", "matchA", "matchB"])
       .session(session);
     if (_.isEmpty(match)) {
       return res
         .status(404)
         .json(failed_response(404, "Match not found", {}, false));
     }
-    if(match?.tournamentID?.status === 'PENDING'){
-      match.tournamentID.status = 'ACTIVE';
-      match.tournamentID = await match?.tournamentID.save({session});
+    if (match?.tournamentID?.status === "PENDING") {
+      match.tournamentID.status = "ACTIVE";
+      match.tournamentID = await match?.tournamentID.save({ session });
     }
     let currentRound = await tournamentRoundModel
-    .findById(match?.roundID)
-    .populate("matches")
-    .session(session);
-    let tournamentFormat = await tournamentKnockoutModel.findById(match?.formatID?.toString()).session(session);
-    if(_.isEmpty(tournamentFormat)){
-      return res.status(400).json(failed_response(400, "Tournament format not found",false));
+      .findById(match?.roundID)
+      .populate("matches")
+      .session(session);
+    let tournamentFormat = await tournamentKnockoutModel
+      .findById(match?.formatID?.toString())
+      .session(session);
+    if (_.isEmpty(tournamentFormat)) {
+      return res
+        .status(400)
+        .json(failed_response(400, "Tournament format not found", false));
     }
 
     if (match?.teamA?.toString() || match?.teamB?.toString()) {
       if (!match?.teamA && match?.matchA) {
         let message = `${match?.matchA?.name}'s  winner is not declared `;
-        return res
-          .status(400)
-          .json(
-            failed_response(400,
-            message,
-            {},
-            false
-          ));
+        return res.status(400).json(failed_response(400, message, {}, false));
       }
-      if(!match?.teamA && !match?.matchA)
-      {
-        if(tournamentFormat?.totalRounds !== currentRound?.roundNumber){
-          return res.status(400).json(failed_response(400, "Participants not assigned",{},false));
-        }
-      }
-      if (!match?.teamB && match?.matchB) { 
+      // if(!match?.teamA && !match?.matchA)
+      // {
+      //   if(tournamentFormat?.totalRounds !== currentRound?.roundNumber){
+      //     return res.status(400).json(failed_response(400, "Participants not assigned",{},false));
+      //   }
+      // }
+      if (!match?.teamB && match?.matchB) {
         let message = `${match?.matchB?.name}'s  winner is not declared `;
-        return res
-          .status(400)
-          .json(
-            failed_response(400,
-            message,
-            {},
-            false
-          ));
-      } 
-      if(!match?.teamB && !match?.matchB)
-        {
-          if(tournamentFormat?.totalRounds !== currentRound?.roundNumber){
-            return res.status(400).json(failed_response(400, "Participants not assigned",{},false));
-          }
-        }
-      
+        return res.status(400).json(failed_response(400, message, {}, false));
+      }
+      // if(!match?.teamB && !match?.matchB)
+      //   {
+      //     if(tournamentFormat?.totalRounds !== currentRound?.roundNumber){
+      //       return res.status(400).json(failed_response(400, "Participants not assigned",{},false));
+      //     }
+      //   }
     } else {
       if (match?.matchA && match?.matchB) {
         return res
@@ -128,18 +117,24 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
     // update previous matches status
     if (!match?.status) {
       return res
-          .status(400)
-          .json(failed_response(400, match?.name+" winner cannot be declared again ", {}, false));
+        .status(400)
+        .json(
+          failed_response(
+            400,
+            match?.name + " winner cannot be declared again ",
+            {},
+            false
+          )
+        );
     }
-    if(match?.matchA){
+    if (match?.matchA) {
       match.matchA.status = false;
-      match.matchA = await match.matchA.save({session});
+      match.matchA = await match.matchA.save({ session });
     }
-    if(match?.matchB){
+    if (match?.matchB) {
       match.matchB.status = false;
-      match.matchB = await match.matchB.save({session});
+      match.matchB = await match.matchB.save({ session });
     }
-    let previousWinner = match?.winner ? true : false;
     // match.scoreA = data.scoreA;
     // match.scoreB = data.scoreB;
     match.winner = data.winner;
@@ -232,114 +227,6 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
     if (isRoundCompleted) {
       currentRound.isCompleted = true;
       currentRound = await currentRound.save({ session });
-      // handling if it is final round or next out of round
-      nextRoundDetails = await tournamentRoundModel
-        .findOne({
-          roundNumber: currentRound?.roundNumber + 1,
-          tournamentID: currentRound?.tournamentID,
-          formatTypeID: currentRound?.formatTypeID,
-        })
-        .populate("matches")
-        .session(session);
-      if (!nextRoundDetails) {
-        nextRoundDetails = {};
-      } else {
-        let participants = nextRoundDetails?.participants.length;
-        if (participants % 2 !== 0 && !previousWinner) {
-          let matchesLength = nextRoundDetails?.matches.length;
-          let nextMatchId = nextRoundDetails?.matches[0]?.nextMatch?.toString();
-          let lastMathReferID =
-            nextRoundDetails?.matches[matchesLength - 1]?.nextMatch?.toString();
-          let lastMatchID =
-            nextRoundDetails?.matches[matchesLength - 1]?._id?.toString();
-          let firstMatchID = nextRoundDetails?.matches[0]?._id?.toString();
-
-          nextRoundDetails.matches[0].nextMatch = lastMatchID;
-          nextRoundDetails.matches[matchesLength - 1].nextMatch = nextMatchId;
-          nextRoundDetails.matches[matchesLength - 1].matchB = firstMatchID;
-          let firstReferMatchINDX = 0;
-          let nextNextRoundDetails = await tournamentRoundModel
-            .findOne({
-              roundNumber: nextRoundDetails?.roundNumber + 1,
-              tournamentID: nextRoundDetails?.tournamentID,
-              formatTypeID: nextRoundDetails?.formatTypeID,
-            })
-            .populate("matches")
-            .session(session);
-
-          if (_.isEmpty(nextNextRoundDetails)) {
-            nextNextRoundDetails = {};
-          } else {
-            nextNextRoundDetails?.matches?.filter((match, index) => {
-              if (match?._id?.toString() === nextMatchId) {
-                firstReferMatchINDX = index;
-                return match;
-              }
-            });
-            if (lastMathReferID) {
-              if (!_.isEmpty(nextNextRoundDetails)) {
-                let referMatchIndex = 0;
-                nextNextRoundDetails?.matches?.filter((match, index) => {
-                  if (match?._id?.toString() === lastMathReferID) {
-                    referMatchIndex = index;
-                    return match;
-                  }
-                });
-                if (
-                  nextNextRoundDetails?.matches[
-                    referMatchIndex
-                  ]?.matchA?.toString() === lastMatchID &&
-                  !previousWinner
-                ) {
-                  nextNextRoundDetails.matches[referMatchIndex].matchA = null;
-                }
-                if (
-                  nextNextRoundDetails?.matches[
-                    referMatchIndex
-                  ]?.matchB?.toString() === lastMatchID &&
-                  !previousWinner
-                ) {
-                  nextNextRoundDetails.matches[referMatchIndex].matchB = null;
-                }
-                nextNextRoundDetails.matches[referMatchIndex] =
-                  await nextNextRoundDetails.matches[referMatchIndex].save({
-                    session,
-                  });
-              }
-            }
-
-            // replacing first match id with lastMatchID into next round match
-            if (
-              nextNextRoundDetails?.matches[
-                firstReferMatchINDX
-              ]?.matchA?.toString() === firstMatchID
-            ) {
-              nextNextRoundDetails.matches[firstReferMatchINDX].matchA =
-                lastMatchID;
-            }
-            if (
-              nextNextRoundDetails?.matches[
-                firstReferMatchINDX
-              ]?.matchB?.toString() === firstMatchID
-            ) {
-              nextNextRoundDetails.matches[firstReferMatchINDX].matchB =
-                lastMatchID;
-            }
-            nextNextRoundDetails.matches[firstReferMatchINDX] =
-              await nextNextRoundDetails.matches[firstReferMatchINDX].save({
-                session,
-              });
-            nextRoundDetails.matches[0] =
-              await nextRoundDetails.matches[0].save({
-                session,
-              });
-            nextRoundDetails.matches[matchesLength - 1] =
-              await nextRoundDetails.matches[matchesLength - 1].save({
-                session,
-              });
-          }
-        }
-      }
     }
 
     await session.commitTransaction();

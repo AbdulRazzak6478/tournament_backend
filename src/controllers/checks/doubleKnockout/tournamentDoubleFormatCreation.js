@@ -17,129 +17,233 @@ const generateTournamentId = async () => {
   console.log("tournament unique id : ", newId);
   return newId;
 };
-const getRoundsNamesForBrackets = (bracketData) => {
-  let roundName = "";
-  for (let i = 1; i <= bracketData.length; i++) {
-    if (i === bracketData.length) {
-      roundName = "Final";
-    } else {
-      roundName =
-        i === bracketData.length - 1
-          ? "Semi Final"
-          : i === bracketData.length - 2
-          ? "Quarter Final"
-          : `Qualification Round ${i}`;
-    }
-    bracketData[i - 1].roundName = roundName;
-  }
-  return bracketData;
-};
 
-const getBracketsRoundsAndMatches = (participants) => {
+const getRoundsAndMatchesForBrackets = (participants) => {
   try {
-    let totalRounds = Math.ceil(Math.log2(participants));
+    let roundData = [];
+    const totalRounds = Math.ceil(Math.log2(participants));
+    const roundNames = [];
+
     console.log("participants : ", participants);
     console.log("total : ", totalRounds);
 
     let tourTeams = participants;
-    let winnersBrackets = [];
-    let losersBrackets = [];
+    let roundType = "";
+    let loserBrackets = [];
+    const roundMatchMap = new Map();
+    const roundWinnerMap = new Map();
     for (let i = 1; i <= totalRounds; i++) {
-      let matches = 0;
-      let winners = 0;
-      let losers = 0;
-      matches = Math.round(tourTeams / 2);
-      losers = Math.floor(tourTeams / 2);
-      winners = matches;
-      tourTeams = matches;
-      let losersMatches = 0;
-      let losersWinners = 0;
-      let losersBracketLosers = 0;
-      if (i == 1) {
-        losersMatches = Math.round(losers / 2);
-        losersWinners = Math.round(losers / 2);
-        losersBracketLosers = Math.floor(losers / 2);
+      if (i === totalRounds) {
+        roundNames.push("Final");
       } else {
-        losersMatches = Math.round(
-          (losers + losersBrackets[i - 2]?.winners) / 2
-        );
-        losersWinners = Math.round(
-          (losers + losersBrackets[i - 2]?.winners) / 2
-        );
-        losersBracketLosers = Math.floor(
-          (losers + losersBrackets[i - 2]?.winners) / 2
-        );
+        roundType =
+          i === totalRounds - 1
+            ? "Semi Final"
+            : i === totalRounds - 2
+            ? "Quarter Final"
+            : `Qualification Round ${i}`;
+        roundNames.push(roundType);
       }
-      let losersObj = {
-        roundNumber: i,
-        matches: losersMatches,
-        winners: losersWinners,
-        losers: losersBracketLosers,
-      };
-      losersBrackets.push(losersObj);
-      let winnerObj = {
-        roundNumber: i,
-        matches,
-        winners,
-        losers,
-      };
-      winnersBrackets.push(winnerObj);
+      if (tourTeams % 2 !== 0) {
+        let matches = Math.round(tourTeams / 2);
+        roundWinnerMap.set(i, Math.floor(tourTeams / 2));
+        let winners = Math.floor(tourTeams / 2);
+        console.log(
+          "round : ",
+          i,
+          " , matches : ",
+          matches,
+          " , winners : ",
+          winners
+        );
+
+        // previous round winner equal to present round matches then no need to send into loser
+        let losers = matches === roundWinnerMap.get(i - 1) ? true : false;
+        if (i == 1) {
+          const loserMatches = Math.round(matches / 2);
+          const loserMatchesWinner = Math.floor(matches / 2);
+          const loserObj = {
+            round: i,
+            matches: loserMatches,
+            winners: loserMatchesWinner,
+            brackets: "losers",
+          };
+          loserBrackets.push(loserObj);
+          console.log("loser Obj : ", loserObj);
+        } else {
+          console.log(
+            "previous : ",
+            toInteger(loserBrackets[i - 2]?.winners),
+            loserBrackets[i - 2]
+          );
+          let loserMatches = 0;
+          let loserMatchesWinner = 0;
+          if (losers && i === totalRounds) {
+            loserMatches = Math.round(
+              toInteger(loserBrackets[i - 2]?.winners) / 2
+            );
+            loserMatchesWinner = Math.floor(
+              toInteger(loserBrackets[i - 2]?.winners) / 2
+            );
+            console.log(
+              "toInteger toInteger(loserBrackets[i-2]?.winners) / 2 : ",
+              (toInteger(loserBrackets[i - 2]?.winners) + 1) / 2
+            );
+          } else {
+            loserMatches = Math.round(
+              (toInteger(loserBrackets[i - 2]?.winners) + matches) / 2
+            );
+            loserMatchesWinner = Math.floor(
+              (toInteger(loserBrackets[i - 2]?.winners) + matches) / 2
+            );
+          }
+          const loserObj = {
+            round: i,
+            matches: loserMatches,
+            brackets: "losers",
+            winners: loserMatchesWinner,
+          };
+          loserBrackets.push(loserObj);
+          console.log("looser Obj : ", loserObj);
+        }
+        tourTeams = Math.floor(tourTeams / 2);
+        roundMatchMap.set(i, matches);
+        let obj = {
+          roundNumber: i,
+          roundName: roundNames[i - 1],
+          brackets: "winners",
+          matches: roundMatchMap.get(i),
+        };
+        roundData.push(obj);
+      } else if (tourTeams % 2 === 0) {
+        let matches = Math.round(tourTeams / 2);
+        roundWinnerMap.set(i, Math.floor(tourTeams / 2));
+        let winners = Math.floor(tourTeams / 2);
+        console.log(
+          "round : ",
+          i,
+          " , matches : ",
+          matches,
+          " , winners : ",
+          winners
+        );
+        // for checking not to exceed final round in both brackets
+        let losers = matches === roundWinnerMap.get(i - 1) ? true : false;
+        console.log("end : ", losers);
+        if (i == 1) {
+          const loserMatches = Math.round(matches / 2);
+          const loserMatchesWinner = Math.floor(matches / 2);
+          const loserObj = {
+            round: i,
+            matches: loserMatches,
+            winners: loserMatchesWinner,
+            brackets: "losers",
+          };
+          loserBrackets.push(loserObj);
+          console.log("loser Obj : ", loserObj);
+        } else {
+          console.log(
+            "previous : ",
+            toInteger(loserBrackets[i - 2]?.winners),
+            loserBrackets[i - 2]
+          );
+          let loserMatches = 0;
+          let loserMatchesWinner = 0;
+          if (losers && i === totalRounds) {
+            loserMatches = Math.round(
+              toInteger(loserBrackets[i - 2]?.winners) / 2
+            );
+            loserMatchesWinner = Math.floor(
+              toInteger(loserBrackets[i - 2]?.winners) / 2
+            );
+          } else {
+            loserMatches = Math.round(
+              (toInteger(loserBrackets[i - 2]?.winners) + matches) / 2
+            );
+            loserMatchesWinner = Math.floor(
+              (toInteger(loserBrackets[i - 2]?.winners) + matches) / 2
+            );
+          }
+          const loserObj = {
+            round: i,
+            matches: loserMatches,
+            brackets: "losers",
+            winners: loserMatchesWinner,
+          };
+          loserBrackets.push(loserObj);
+          console.log("loser Obj : ", loserObj);
+        }
+        tourTeams = Math.floor(tourTeams / 2);
+        roundMatchMap.set(i, matches);
+        let obj = {
+          roundNumber: i,
+          roundName: roundNames[i - 1],
+          brackets: "winners",
+          matches: roundMatchMap.get(i),
+        };
+        roundData.push(obj);
+      }
     }
-    let winners = losersBrackets[totalRounds - 1]?.winners;
-    let round = totalRounds;
-    while (winners > 1) {
-      let losersMatches = Math.round(winners / 2);
-      let losersWinners = losersMatches;
-      let losersBracketLosers = Math.floor(winners / 2);
-      let losersObj = {
-        roundNumber: round + 1,
-        losersMatches,
-        losersWinners,
-        losersBracketLosers,
+    let length = loserBrackets.length;
+    let losersWinners = loserBrackets[length - 1].winners;
+    while (losersWinners > 1) {
+      length = loserBrackets.length;
+      let matches = Math.round(losersWinners / 2);
+      let winners = Math.floor(losersWinners / 2);
+      const loserObj = {
+        round: loserBrackets[length - 1].round + 1,
+        brackets: "losers",
+        matches: matches,
+        winners: winners,
       };
-      losersBrackets.push(losersObj);
-      winners = losersMatches;
+      loserBrackets.push(loserObj);
+      losersWinners = Math.floor(losersWinners / 2);
     }
-    winnersBrackets = getRoundsNamesForBrackets(winnersBrackets);
-    losersBrackets = getRoundsNamesForBrackets(losersBrackets);
-    console.log("winners brackets data : ", winnersBrackets);
-    console.log("losers brackets data : ", losersBrackets);
-    const winnersRoundNames = winnersBrackets?.map(
-      (bracket) => bracket?.roundName
-    );
-    const losersRoundNames = losersBrackets?.map(
-      (bracket) => bracket?.roundName
-    );
-    console.log("winners round names : ", winnersRoundNames);
-    console.log("losersRoundNames round names : ", losersRoundNames);
-    const bracketsPayload = {
-      winnersBrackets,
-      losersBrackets,
-      winnersRoundNames,
-      losersRoundNames,
+    let loserRoundType = "";
+    let losersRoundsNames = [];
+    for (let i = 1; i <= loserBrackets.length; i++) {
+      if (i === loserBrackets.length) {
+        losersRoundsNames.push("Final");
+      } else {
+        loserRoundType =
+          i === loserBrackets.length - 1
+            ? "Semi Final"
+            : i === loserBrackets.length - 2
+            ? "Quarter Final"
+            : `Qualification Round ${i}`;
+        losersRoundsNames.push(loserRoundType);
+      }
+      loserBrackets[i - 1].roundName = losersRoundsNames[i - 1];
+    }
+    console.log("winners rounds map  : ", roundMatchMap);
+    //   console.log("winners rounds data  : ", roundData);
+    console.log("losers rounds data  : ", loserBrackets);
+    return {
+      totalRounds: totalRounds,
+      roundNames: roundNames,
+      losersBrackets: loserBrackets,
+      winnersBrackets: roundData,
     };
-    return bracketsPayload;
   } catch (error) {
     throw new Error(
-      ",Error in get brackets rounds and matches data " + error?.message
+      " => error in making rounds and matches for both winners and losers brackets  : => " +
+        error?.message
     );
   }
 };
 
+// getRoundsAndMatchesForBrackets(8);
 const createRoundsAndThereMatches = async (
-  dataPayload,
+  tournamentID,
+  formatTypeID,
+  formatType,
+  participantsIds,
   bracketRounds,
+  fixingType,
+  gameType,
   session
 ) => {
   try {
-    const {
-      tournamentID,
-      formatTypeID,
-      formatType,
-      participantsIds,
-      fixingType,
-      gameType,
-    } = dataPayload;
     const roundsAndMatches = [];
     for (let roundData of bracketRounds) {
       // Create a new round
@@ -159,9 +263,6 @@ const createRoundsAndThereMatches = async (
       let round = await tournamentRoundsModel.create([data1], {
         session: session,
       });
-      if (_.isEmpty(round)) {
-        throw new Error(", not able to create round" + roundData.roundNumber);
-      }
       round = round[0];
       // Create matches for the current round
       let roundMatches = Array.from(
@@ -187,11 +288,6 @@ const createRoundsAndThereMatches = async (
         session: session,
       }); // creating matches
 
-      if (_.isEmpty(matches)) {
-        throw new Error(
-          ",not able to create matches for round" + roundData.roundNumber
-        );
-      }
       matchIds = matches?.map((match) => match?._id?.toString());
       round?.matches.push(...matchIds); // storing matches ids
       round = await round.save({ session });
@@ -312,6 +408,83 @@ const referencingMatchesToNextMatches = async (
         });
       }
     }
+
+    console.log("before odd code");
+    // handling winners round one for odd match also updating its references into next matches and round
+    if (bracket === "winners") {
+      let participants = allRoundsData[0].participants.length;
+      if (participants % 2 !== 0 && allRoundsData[0].roundNumber === 1) {
+        let matchesLength = allRoundsData[0]?.matches.length;
+        let nextMatchId = allRoundsData[0]?.matches[0]?.nextMatch?.toString();
+        let lastMathReferID =
+          allRoundsData[0]?.matches[matchesLength - 1]?.nextMatch?.toString();
+        let lastMatchID =
+          allRoundsData[0]?.matches[matchesLength - 1]?._id?.toString();
+        let firstMatchID = allRoundsData[0]?.matches[0]?._id?.toString();
+        allRoundsData[0].matches[0].nextMatch =
+          allRoundsData[0]?.matches[matchesLength - 1]?._id?.toString();
+        allRoundsData[0].matches[matchesLength - 1].nextMatch = nextMatchId;
+        allRoundsData[0].matches[matchesLength - 1].matchB =
+          allRoundsData[0]?.matches[0]?._id?.toString();
+
+        let firstReferMatchINDX = 0;
+        allRoundsData[1]?.matches?.filter((match, index) => {
+          if (match?._id?.toString() === firstMatchID) {
+            firstReferMatchINDX = index;
+            return match;
+          }
+        });
+        if (lastMathReferID) {
+          let nextRoundMatchesLength = allRoundsData[1]?.matches.length;
+          console.log('matches length : ',nextRoundMatchesLength);
+          let referMatchIndex = 0;
+          allRoundsData[1]?.matches?.filter((match, index) => {
+            if (match?._id?.toString() === lastMathReferID) {
+              referMatchIndex = index;
+              return match;
+            }
+          });
+          if (
+            allRoundsData[1]?.matches[referMatchIndex]?.matchA?.toString() ===
+            lastMatchID
+          ) {
+            allRoundsData[1].matches[referMatchIndex].matchA = null;
+          }
+          if (
+            allRoundsData[1]?.matches[referMatchIndex]?.matchB?.toString() ===
+            lastMatchID
+          ) {
+            allRoundsData[1].matches[referMatchIndex].matchB = null;
+          }
+          allRoundsData[1].matches[referMatchIndex] =
+            await allRoundsData[1].matches[referMatchIndex].save({ session });
+        }
+
+        // replacing first match id with lastMatchID
+        if (
+          allRoundsData[1]?.matches[firstReferMatchINDX]?.matchA?.toString() ===
+          firstMatchID
+        ) {
+          allRoundsData[1].matches[firstReferMatchINDX].matchA = lastMatchID;
+        }
+        if (
+          allRoundsData[1]?.matches[firstReferMatchINDX]?.matchB?.toString() ===
+          firstMatchID
+        ) {
+          allRoundsData[1].matches[firstReferMatchINDX].matchB = lastMatchID;
+        }
+        allRoundsData[1].matches[firstReferMatchINDX] =
+          await allRoundsData[1].matches[firstReferMatchINDX].save({ session });
+
+        allRoundsData[0].matches[0] = await allRoundsData[0].matches[0].save({
+          session,
+        });
+        allRoundsData[0].matches[matchesLength - 1] =
+          await allRoundsData[0].matches[matchesLength - 1].save({ session });
+      }
+    }
+    console.log("end Odd code");
+    console.log("hello", rounds);
     return allRoundsData;
   } catch (error) {
     throw new Error(
@@ -330,82 +503,35 @@ const assigningLosersIntoLosersBracket = async (
     for (let loserRound of losersBracket) {
       console.log(
         "loser round " +
-          loserRound.roundNumber +
+          loserRound.brackets +
           ",and matches : " +
           loserRound.matches.length
       );
       let index = 0;
-      if (round == 0) {
-        console.log("loser bracket round 1 : ", loserRound);
-      }
-      for (let match = 0; match < loserRound?.matches?.length; match++) {
-        if (round >= winnersBracket.length) {
-          break;
-        }
-        if (index < winnersBracket[round]?.matches.length) {
-          if (round === 0) {
-            if (!loserRound.matches[match].matchA) {
-              if (
-                winnersBracket[round]?.matches[index]?.teamA &&
-                winnersBracket[round]?.matches[index]?.teamB
-              ) {
-                loserRound.matches[match].matchA =
-                  winnersBracket[round]?.matches[index]?._id?.toString();
-                index++;
-              }
-            }
-            if (
-              !loserRound.matches[match].matchB &&
-              index < winnersBracket[round]?.matches.length
-            ) {
-              if (
-                winnersBracket[round]?.matches[index]?.teamA &&
-                winnersBracket[round]?.matches[index]?.teamB
-              ) {
-                loserRound.matches[match].matchB =
-                  winnersBracket[round]?.matches[index]?._id?.toString();
-                index++;
-              }
-            }
-          } else {
-            if (!loserRound.matches[match].matchA) {
-              if (
-                winnersBracket[round]?.matches[index]?.matchA &&
-                winnersBracket[round]?.matches[index]?.matchB
-              ) {
-                loserRound.matches[match].matchA =
-                  winnersBracket[round]?.matches[index]?._id?.toString();
-                index++;
-              }
-            }
-            if (
-              !loserRound.matches[match].matchB &&
-              index < winnersBracket[round]?.matches.length
-            ) {
-              if (
-                winnersBracket[round]?.matches[index]?.matchA &&
-                winnersBracket[round]?.matches[index]?.matchB
-              ) {
-                loserRound.matches[match].matchB =
-                  winnersBracket[round]?.matches[index]?._id?.toString();
-                index++;
-              }
-            }
+      for (let match = 0; match < loserRound.matches.length; match++) {
+        if (index < winnersBracket[round].matches.length) {
+          if (!loserRound.matches[match].matchA) {
+            loserRound.matches[match].matchA =
+              winnersBracket[round].matches[index]?._id?.toString();
+            index++;
           }
-
+          if (
+            !loserRound.matches[match].matchB &&
+            index < winnersBracket[round].matches.length
+          ) {
+            loserRound.matches[match].matchB =
+              winnersBracket[round].matches[index]?._id?.toString();
+            index++;
+          }
           loserRound.matches[match] = await loserRound.matches[match].save({
             session,
           });
         }
       }
-      if (round == 0) {
-        console.log("trigger in ", index, loserRound.matches);
-      }
       round++;
     }
 
     console.log("losers Rounds length : ", losersBracket.length);
-
     return losersBracket;
   } catch (error) {
     throw new Error(
@@ -430,7 +556,7 @@ const creatingFinalBracketRoundMatch = async (data, session) => {
       session,
     });
     if (_.isEmpty(finalBracket)) {
-      throw new Error(",not able to create round for final bracket ");
+      throw new Error(" not able to create round for final bracket ");
     }
     finalBracket = finalBracket[0];
     const str = "K3";
@@ -444,7 +570,7 @@ const creatingFinalBracketRoundMatch = async (data, session) => {
     let finalMatch = await tournamentMatchModel.create([matchObj], { session });
 
     if (_.isEmpty(finalMatch)) {
-      throw new Error(",not able to create final bracket round match");
+      throw new Error(" not able to create final bracket round match");
     }
     finalMatch = finalMatch[0];
     finalBracket.matches = [finalMatch?._id?.toString()];
@@ -521,9 +647,12 @@ const createDoubleEliminationTournament = async (data) => {
 
     let tournamentUniqueID = await generateTournamentId();
     console.log("tournament unique id : ", tournamentUniqueID);
-    // if (tournamentUniqueID) {
-    //   throw new Error(", tournamentID is created");
+    // if(tournamentUniqueID){
+    //   throw new Error(', tournamentID is created');
     // }
+    console.log("data payload : ", data);
+    // Getting number of rounds possible in tournament
+    let roundsBrackets = getRoundsAndMatchesForBrackets(data.participants);
 
     // categories section
 
@@ -593,13 +722,12 @@ const createDoubleEliminationTournament = async (data) => {
       const teams = await tournamentTeamModel.create([...teamsObjData], {
         session: session,
       });
-      if (_.isEmpty(teams)) {
-        throw new Error(",not able to create teams");
-      }
       let teamsIds = teams?.map((team) => team?._id?.toString());
       // if we have team ids storing and saving into tournament model
-      tournament.teams = teamsIds;
-      tournament = await tournament.save({ session });
+      if (teamsIds.length > 0) {
+        tournament.teams = teamsIds;
+        tournament = await tournament.save({ session });
+      }
       participantsIds = teamsIds;
     }
 
@@ -620,24 +748,22 @@ const createDoubleEliminationTournament = async (data) => {
       const players = await tournamentPlayerModel.create([...playersObjData], {
         session: session,
       });
-      if (_.isEmpty(teams)) {
-        throw new Error(",not able to create players");
-      }
       let playersIds = players?.map((player) => player?._id?.toString());
       // if we have players ids storing and saving into tournament model
-      tournament.participants = playersIds;
-      tournament = await tournament.save({ session });
+      if (playersIds.length > 0) {
+        tournament.participants = playersIds;
+        tournament = await tournament.save({ session });
+      }
       participantsIds = playersIds;
     }
 
-    // Getting number of rounds possible in tournament
-    let roundsBrackets = getBracketsRoundsAndMatches(data.participants);
-
     // formatData Payload
-    const totalWinnersRounds = roundsBrackets?.winnersBrackets.length;
+    const totalWinnersRounds = roundsBrackets.totalRounds;
     const totalLosersRounds = roundsBrackets?.losersBrackets.length;
-    const winnersRoundsNames = roundsBrackets?.winnersRoundNames;
-    const losersRoundsNames = roundsBrackets?.losersRoundNames;
+    const winnersRoundsNames = roundsBrackets?.roundNames;
+    const losersRoundsNames = roundsBrackets?.losersBrackets?.map(
+      (round) => round?.roundName
+    );
     const formatData = {
       tournamentID: tournament?._id?.toString(),
       formatName: data.formatType,
@@ -666,20 +792,13 @@ const createDoubleEliminationTournament = async (data) => {
 
     let losersBrackets = roundsBrackets.losersBrackets?.map((round) => {
       return {
-        roundNumber: round?.roundNumber,
+        roundNumber: round?.round,
         roundName: round?.roundName,
         matches: round?.matches,
-        brackets: "losers",
+        brackets: round?.brackets,
       };
     });
-    let winnersBrackets = roundsBrackets.winnersBrackets?.map((round) => {
-      return {
-        roundNumber: round?.roundNumber,
-        roundName: round?.roundName,
-        matches: round?.matches,
-        brackets: "winners",
-      };
-    });
+    let winnersBrackets = roundsBrackets.winnersBrackets;
 
     // creating rounds and matches
     // 1. creating rounds and matches for winner brackets
@@ -689,26 +808,30 @@ const createDoubleEliminationTournament = async (data) => {
     let tournamentID = tournament?._id?.toString();
     let formatTypeID = tournamentFormat?._id?.toString();
 
-    const roundsDataPayload = {
-      tournamentID: tournamentID,
-      formatTypeID: formatTypeID,
-      formatType: data.formatType,
-      participantsIds,
-      fixingType: data.fixingType,
-      gameType: data.gameType,
-    };
     let winnersRoundsAndMatches = await createRoundsAndThereMatches(
-      roundsDataPayload,
+      tournamentID,
+      formatTypeID,
+      data.formatType,
+      participantsIds,
       winnersBrackets,
+      data.fixingType,
+      data.gameType,
       session
     );
     let losersRoundsAndMatches = await createRoundsAndThereMatches(
-      roundsDataPayload,
+      tournamentID,
+      formatTypeID,
+      data.formatType,
+      participantsIds,
       losersBrackets,
+      data.fixingType,
+      data.gameType,
       session
     );
 
     // referencing next rounds matches into previous rounds matches to help the winner to move forward in winner Bracket
+    // let tournamentID = "668f772412e6130534387dc6";
+    // let formatTypeID = "668f772512e6130534387dd9";
     let winnersRoundsReferences = await referencingMatchesToNextMatches(
       tournamentID,
       formatTypeID,
@@ -758,9 +881,7 @@ const createDoubleEliminationTournament = async (data) => {
       "losers",
       session
     );
-    losersRoundsReferences.sort(
-      (round1, round2) => round1?.roundNumber - round2?.roundNumber
-    );
+
     // assigning losers into losers bracket
 
     losersRoundsReferences = await assigningLosersIntoLosersBracket(
@@ -839,9 +960,9 @@ const createDoubleEliminationTournament = async (data) => {
       FinalBracketMatch,
     };
     console.log("responsePayload : ", responsePayload);
-    // if (responsePayload) {
-    //   throw new Error(",error in end");
-    // }
+    if (responsePayload) {
+      throw new Error(",error in end");
+    }
     await session.commitTransaction();
     await session.endSession();
     return responsePayload;

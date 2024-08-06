@@ -78,7 +78,7 @@ const arrangingParticipantsBasedOnFixingType = catchAsync(async (req, res) => {
         .json(
           failed_response(
             400,
-            " incoming field :participantsArr =>  " +
+            " incoming field :participantsArr:  " +
               isParticipantsArrValid.length +
               " ids are not valid",
             { inValid_Ids: isParticipantsArrValid },
@@ -90,21 +90,6 @@ const arrangingParticipantsBasedOnFixingType = catchAsync(async (req, res) => {
     let roundData = await tournamentRoundModel
       .findOne({ _id: roundID })
       .populate(["matches"]);
-
-    if (roundData?.fixingType.toLowerCase() !== "manual") {
-      return res
-        .status(400)
-        .json(
-          failed_response(
-            400,
-            " not able to arrange the participants, tournament fixingType is : " +
-              roundData?.fixingType +
-              " , not manual",
-            {},
-            false
-          )
-        );
-    }
 
     if (roundData?.winners.length > 0) {
       return res
