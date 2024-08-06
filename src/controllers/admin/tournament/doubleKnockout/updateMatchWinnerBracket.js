@@ -13,7 +13,17 @@ const _ = require("lodash");
 function isValidObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id);
 }
-const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
+
+const updatingLoserIntoLoserBracketRoundMatch = async (roundNumber,updatedMatch,session) =>{
+    try{
+        console.log('lets start updating loser into loser bracket');
+        return {};
+    }
+    catch(error){
+        throw new Error(',Error in updating loser into loser bracket :'+error?.message);
+    }
+}
+const updateWinnerForDoubleWinnerBracket = catchAsync(async (req, res) => {
   const session = await mongoose.startSession();
   try {
     if (_.isEmpty(req.body.matchID)) {
@@ -60,36 +70,16 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
       .findById(match?.roundID)
       .populate("matches")
       .session(session);
-    let tournamentFormat = await tournamentKnockoutModel
-      .findById(match?.formatID?.toString())
-      .session(session);
-    if (_.isEmpty(tournamentFormat)) {
-      return res
-        .status(400)
-        .json(failed_response(400, "Tournament format not found", false));
-    }
 
     if (match?.teamA?.toString() || match?.teamB?.toString()) {
       if (!match?.teamA && match?.matchA) {
         let message = `${match?.matchA?.name}'s  winner is not declared `;
         return res.status(400).json(failed_response(400, message, {}, false));
       }
-      // if(!match?.teamA && !match?.matchA)
-      // {
-      //   if(tournamentFormat?.totalRounds !== currentRound?.roundNumber){
-      //     return res.status(400).json(failed_response(400, "Participants not assigned",{},false));
-      //   }
-      // }
       if (!match?.teamB && match?.matchB) {
         let message = `${match?.matchB?.name}'s  winner is not declared `;
         return res.status(400).json(failed_response(400, message, {}, false));
       }
-      // if(!match?.teamB && !match?.matchB)
-      //   {
-      //     if(tournamentFormat?.totalRounds !== currentRound?.roundNumber){
-      //       return res.status(400).json(failed_response(400, "Participants not assigned",{},false));
-      //     }
-      //   }
     } else {
       if (match?.matchA && match?.matchB) {
         return res
@@ -207,13 +197,14 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
       responseData = {
         currentMatch: updatedMatch,
         nextMatchDetails,
-        nextRound,
       };
     } else {
       responseData = {
         currentMatch: updatedMatch,
       };
     }
+
+    let updateLoserIntoLoserBracket = await updatingLoserIntoLoserBracketRoundMatch(currentRound?.roundNumber,updatedMatch,session);
 
     //scheduling next round matches
 
@@ -236,7 +227,7 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
       .json(
         success_response(
           201,
-          "Winner updated into current match and move into next match ",
+          "Successfully updated winner for winner bracket",
           responseData,
           true
         )
@@ -249,7 +240,7 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
       .json(
         failed_response(
           400,
-          "Something went wrong while while creating tournament ",
+          "Something went wrong while updating winner bracket match winner ",
           { message: err.message },
           false
         )
@@ -257,4 +248,4 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
   }
 });
 
-module.exports = updateTournamentRoundMatchWinner;
+module.exports = updateWinnerForDoubleWinnerBracket;
