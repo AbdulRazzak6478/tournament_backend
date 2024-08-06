@@ -140,14 +140,20 @@ const updateWinnerForDoubleWinnerBracket = catchAsync(async (req, res) => {
     });
     if (exist.length === 0) {
       currentRound.winners.push(updatedMatch?.winner?.toString());
-      currentRound = await currentRound.save({ session });
     } else {
       currentRound.winners = currentRound.winners.filter(
         (winnerId) => winnerId !== exist[0]
       );
       currentRound.winners.push(updatedMatch?.winner.toString());
-      currentRound = await currentRound.save({ session });
     }
+    let idx = 0;
+    currentRound.matches.forEach((match, index) => {
+      if (match?._id?.toString() === updatedMatch?._id?.toString()) {
+        idx = index;
+      }
+    });
+    currentRound.matches[idx].winner = updatedMatch?.winner;
+    currentRound = await currentRound.save({ session });
 
     let responseData = {};
     if (updatedMatch?.nextMatch) {
