@@ -80,6 +80,7 @@ router.put(
 // pending
 //1. add participants api for double knockout section
 // 2. remove participants api for double knockout section 
+// 3. update tournament details with updated data
 
 // matches
 router.get('/tournament/getParticipants/:roundID',gettingRoundMatchesForManualFixing);
