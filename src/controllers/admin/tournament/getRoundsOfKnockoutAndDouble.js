@@ -13,20 +13,13 @@ const getRoundsAndMatchesWithParticipants = async (rounds) => {
   try {
     let participantsDetails = [];
     if (rounds[0]?.gameType === "team") {
-      participantsDetails = await tournamentTeamModel.find(
-        { _id: rounds[0]?.participants },
-        { name: 1 }
-      );
+      participantsDetails = await tournamentTeamModel.find({}, { name: 1 });
     } else if (rounds[0]?.gameType === "individual") {
-      participantsDetails = await tournamentPlayerModel.find(
-        { _id: rounds[0]?.participants },
-        { name: 1 }
-      );
+      participantsDetails = await tournamentPlayerModel.find({}, { name: 1 });
     }
     if (_.isEmpty(participantsDetails)) {
       participantsDetails = [];
     }
-
     let participantsMap = new Map();
     participantsDetails?.map((participant) => {
       participantsMap.set(participant?._id?.toString(), participant?.name);
@@ -94,8 +87,7 @@ const getRoundsAndMatchesWithParticipants = async (rounds) => {
     return roundsData;
   } catch (error) {
     throw new Error(
-      " => error in getting rounds and matches with participants " +
-        error?.message
+      ",error in getting rounds and matches with participants " + error?.message
     );
   }
 };
@@ -103,18 +95,14 @@ const getRoundsAndMatchesWithParticipants = async (rounds) => {
 const getAllRoundsAndMatchesOfFormat = catchAsync(async (req, res) => {
   try {
     const { tournamentID } = req.params;
+    const { bracket } = req.query;
     if (_.isEmpty(tournamentID)) {
       return res
         .status(400)
         .json(failed_response(400, "Pass an valid tournamentID ", {}, false));
     }
-    // if (!isValidObjectId(req.body.formatTypeID)) {
-    //   return res
-    //     .status(400)
-    //     .json(failed_response(400, "Pass an valid formatTypeID ", {}, false));
-    // }
     const brackets = ["winners", "losers", "Final Bracket"];
-    if (!brackets.includes(req.body.bracket)) {
+    if (!brackets.includes(bracket)) {
       return res
         .status(400)
         .json(
@@ -137,12 +125,12 @@ const getAllRoundsAndMatchesOfFormat = catchAsync(async (req, res) => {
     const data = {
       tournamentID: tournament?._id?.toString(),
       formatTypeID: tournament?.formatID?.toString(),
-      brackets: req.body.bracket,
+      brackets: bracket,
     };
     console.log("before venue");
     let rounds = await tournamentRoundModel
       .find({ tournamentID: data.tournamentID, brackets: data.brackets })
-      .populate({ path: "matches", populate: ["matchA", "matchB"] })
+      .populate({ path: "matches", populate: ["matchA", "matchB",{path : 'venueID' , populate : 'venueClubId'}] })
       .populate("participants");
     if (_.isEmpty(rounds)) {
       rounds = [];
@@ -160,7 +148,7 @@ const getAllRoundsAndMatchesOfFormat = catchAsync(async (req, res) => {
       .status(200)
       .json(
         success_response(
-          201,
+          200,
           "Successfully fetching tournament rounds and matches through tournamentID ",
           responsePayload,
           true

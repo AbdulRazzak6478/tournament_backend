@@ -114,3 +114,4 @@
 //   MatchSchema.winner > teamsSchema
 //   MatchSchema.venueID > venueSchema
 //   // users.app_settings > userSettings
+// npm i @aws-sdk/client-secrets-manager

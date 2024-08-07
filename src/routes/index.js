@@ -12,9 +12,9 @@ const {
 const recoverArchiveTournament = require("../controllers/admin/tournament/recoverArchiveTournament");
 const getAllRoundsAndMatchesOfFormat = require("../controllers/admin/tournament/getRoundsOfKnockoutAndDouble");
 const updateTournamentRoundMatchWinner = require("../controllers/admin/tournament/knockout/updateMatchWinner");
-const { updateWinnerForWinnersBracket } = require("../controllers/admin/tournamentdouble/updateDoubleWinnerMatch");
 const gettingRoundMatchesForManualFixing = require("../controllers/admin/tournament/match/getRoundMatchesForManualFixing");
 const arrangingParticipantsBasedOnFixingType = require("../controllers/admin/tournament/match/arrangingParticipantsBasedOnFixingType");
+const updateWinnerForDoubleKnockoutBrackets = require("../controllers/admin/tournament/doubleKnockout/updateMatchWinnerBracket");
 const router = express.Router();
 
 // categories routes
@@ -74,7 +74,7 @@ router.put(
 // update Winner For double knockout winners bracket and Final Bracket format
 router.put(
   "/tournament/double/winners/updateWinner",
-  updateWinnerForWinnersBracket
+  updateWinnerForDoubleKnockoutBrackets
 );
 
 
