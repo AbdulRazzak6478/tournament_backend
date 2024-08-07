@@ -77,6 +77,8 @@ router.put(
   updateWinnerForDoubleKnockoutBrackets
 );
 
+// pending
+//1. add participants api for double knockout section
 
 
 // matches
