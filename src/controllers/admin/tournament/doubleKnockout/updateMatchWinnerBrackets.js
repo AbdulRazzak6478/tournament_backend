@@ -5,7 +5,6 @@ const {
 } = require("../../../../utils/response.js");
 const tournamentMatchModel = require("../../../../models/tournamentMatch.js");
 const tournamentRoundModel = require("../../../../models/tournamentRounds.js");
-const tournamentKnockoutModel = require("../../../../models/tournamentKnockoutFormat.js");
 const mongoose = require("mongoose");
 const _ = require("lodash");
 
@@ -119,7 +118,7 @@ const updatingLoserIntoLoserBracketRoundMatch = async (
       loserRound.participants.push(matchLoser);
     }
     loserRound = await loserRound.save({ session });
-    for (let match of loserRound?.matches) {
+    for (let match of loserRound.matches) {
       if (
         match?.matchA &&
         match?.matchA?.toString() === matchDetails?._id?.toString()
@@ -277,7 +276,7 @@ const updateWinnerForDoubleKnockoutBrackets = catchAsync(async (req, res) => {
         .populate("matches")
         .session(session);
 
-      nextRound = await forUpdateInParticipants(
+        await forUpdateInParticipants(
         nextRound,
         updatedMatch,
         session
@@ -292,7 +291,6 @@ const updateWinnerForDoubleKnockoutBrackets = catchAsync(async (req, res) => {
       };
     }
 
-    console.log("currentRound?.roundNumber : ", currentRound?.roundNumber);
     let matchLoser =
       updatedMatch?.winner?.toString() === updatedMatch?.teamA?.toString()
         ? updatedMatch?.teamB?.toString()

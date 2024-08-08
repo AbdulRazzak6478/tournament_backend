@@ -7,6 +7,7 @@ const tournamentModel = require("../../../models/tournament.js");
 // const mongoose = require("mongoose");
 const _ = require("lodash");
 const addParticipantInKnockoutFormatAndReArrangeTournament = require("./knockout/addParticipantIntoKnockout.js");
+const addParticipantIntoDoubleKnockoutTournament = require("./doubleKnockout/addParticipantIntoDouble.js");
 
 // to validate ObjectId()
 // function isValidObjectId(id) {
@@ -34,15 +35,21 @@ const addParticipantIntoTournament = catchAsync(async (req, res) => {
         .status(400)
         .json(failed_response(400, "tournament not found", {}, false));
     }
+    if(tournamentDetails?.status === 'ACTIVE' || tournamentDetails?.status === 'COMPLETED'){
+      return res
+        .status(400)
+        .json(failed_response(400, `Tournament is ${tournamentDetails?.status} Cannot Add PArticipant`, {}, false));
+    }
     
     let responseData = {};
     if (tournamentDetails?.formatName?.toLowerCase() === "knockout") {
       responseData = await addParticipantInKnockoutFormatAndReArrangeTournament(tournamentDetails,participantName);
     }
     if (tournamentDetails?.formatName?.toLowerCase() === "double_elimination_bracket") {
-      responseData = {
-        message: "work in progress for double_elimination_bracket",
-      };
+      responseData = await addParticipantIntoDoubleKnockoutTournament(tournamentDetails,participantName);
+      // responseData = {
+      //   message: "work in progress for double_elimination_bracket",
+      // };
     }
     if (tournamentDetails?.formatName?.toLowerCase() === "round_robbin") {
       responseData = {

@@ -7,6 +7,7 @@ const tournamentModel = require("../../../models/tournament.js");
 const mongoose = require("mongoose");
 const _ = require("lodash");
 const removeParticipantInKnockoutFormatAndReArrangeTournament = require("./knockout/removeParticipantFromKnockout.js");
+const removeParticipantFromDoubleKnockoutTournament = require("./doubleKnockout/removeParticipantFromDoubleFormat.js");
 
 // to validate ObjectId()
 function isValidObjectId(id) {
@@ -40,18 +41,25 @@ const removeParticipantFromTournament = catchAsync(async (req, res) => {
         .status(400)
         .json(failed_response(400, "tournament not found", {}, false));
     }
+    if(tournamentDetails?.status === 'ACTIVE' || tournamentDetails?.status === 'COMPLETED'){
+      return res
+        .status(400)
+        .json(failed_response(400, `Tournament is ${tournamentDetails?.status} Cannot Remove PArticipant`, {}, false));
+    }
+    
     
     let responseData = {};
     if (tournamentDetails?.formatName?.toLowerCase() === "knockout") {
       responseData = await removeParticipantInKnockoutFormatAndReArrangeTournament(tournamentDetails,participantId);
-    //     responseData = {
-    //     message: "work in progress for knockout section",
-    //   };
+      //   responseData = {
+      //   message: "work in progress for knockout section",
+      // };
     }
     if (tournamentDetails?.formatName?.toLowerCase() === "double_elimination_bracket") {
-      responseData = {
-        message: "work in progress for double_elimination_bracket",
-      };
+      responseData = await removeParticipantFromDoubleKnockoutTournament(tournamentDetails,participantId)
+      // responseData = {
+      //   message: "work in progress for double_elimination_bracket",
+      // };
     }
     if (tournamentDetails?.formatName?.toLowerCase() === "round_robbin") {
       responseData = {

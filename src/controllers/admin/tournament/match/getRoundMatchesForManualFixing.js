@@ -42,7 +42,7 @@ const getParticipants = async (gameType, participantsIds) => {
     return participantsDetails;
   } catch (error) {
     throw new Error(
-      " => Error in getting details of participants " + error?.message
+      ",Error in getting details of participants " + error?.message
     );
   }
 };
@@ -69,6 +69,8 @@ const gettingRoundMatchesForManualFixing = catchAsync(async (req, res) => {
         .status(400)
         .json(failed_response(400, "not able to find the round", {}, false));
     }
+
+
     if (roundData?.winners.length > 0) {
       return res
         .status(400)

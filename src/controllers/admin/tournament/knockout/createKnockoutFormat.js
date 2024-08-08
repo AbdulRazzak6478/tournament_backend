@@ -6,18 +6,16 @@ const tournamentPlayerModel = require("../../../../models/tournamentPlayer");
 const tournamentRoundsModel = require("../../../../models/tournamentRounds");
 const tournamentMatchModel = require("../../../../models/tournamentMatch");
 const tournamentKnockoutModel = require("../../../../models/tournamentKnockoutFormat");
-const tournamentIdModel = require('../../../../models/tournamentIds');
+const tournamentIdModel = require("../../../../models/tournamentIds");
 const mongoose = require("mongoose");
 const _ = require("lodash");
 
-
-const generateTournamentId = async ()=>{
+const generateTournamentId = async () => {
   const count = await tournamentIdModel.find({});
-  const newId = `GBT${(count.length + 1).toString().padStart(6, '0')}`;
-  console.log('tournament unique id : ',newId);
+  const newId = `GBT${(count.length + 1).toString().padStart(6, "0")}`;
+  console.log("tournament unique id : ", newId);
   return newId;
-}
-
+};
 
 const getRoundsNamesForBrackets = (bracketData) => {
   let roundName = "";
@@ -29,8 +27,8 @@ const getRoundsNamesForBrackets = (bracketData) => {
         i === bracketData.length - 1
           ? "Semi Final"
           : i === bracketData.length - 2
-          ? "Quarter Final"
-          : `Qualification Round ${i}`;
+            ? "Quarter Final"
+            : `Qualification Round ${i}`;
     }
     bracketData[i - 1].roundName = roundName;
   }
@@ -45,7 +43,6 @@ const getBracketsRoundsAndMatches = (participants) => {
 
     let tourTeams = participants;
     const roundMatchMap = new Map();
-    const roundWinnerMap = new Map();
     let winnersBrackets = [];
     for (let i = 1; i <= totalRounds; i++) {
       let matches = 0;
@@ -81,7 +78,6 @@ const getBracketsRoundsAndMatches = (participants) => {
     );
   }
 };
-
 
 const arrangingTeamsBasedOnFixingType = (fixingType, teams) => {
   try {
@@ -150,7 +146,6 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
     // 13.Storing all rounds ids into knockout format and knockout into tournament
     // 14. returning response of tournament;
 
-
     // STEP 1
     const data = {
       mainCategoryID: dataPayload.mainCategoryID,
@@ -180,7 +175,7 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
 
     let totalRounds = Math.ceil(Math.log2(data.participants));
     let roundNames = [];
-    let roundType = '';
+    let roundType = "";
     for (let i = 1; i <= totalRounds; i++) {
       if (i === totalRounds) {
         roundNames.push("Final");
@@ -189,8 +184,8 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
           i === totalRounds - 1
             ? "Semi Final"
             : i === totalRounds - 2
-            ? "Quarter Final"
-            : `Qualification Round ${i}`;
+              ? "Quarter Final"
+              : `Qualification Round ${i}`;
         roundNames.push(roundType);
       }
     }
@@ -223,8 +218,11 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
     tournament = tournament[0];
 
     // creating record of tournamentId in  model
-    const uniqueId = await tournamentIdModel.create([{tournamentID : tournamentId}],{session : session});
-    console.log('tournament Unique id : ',uniqueId);
+    const uniqueId = await tournamentIdModel.create(
+      [{ tournamentID: tournamentId }],
+      { session: session }
+    );
+    console.log("tournament Unique id : ", uniqueId);
 
     // STEP 4 :
     let participantsIds = [];
@@ -306,7 +304,7 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
       session: session,
     });
     if (_.isEmpty(tournamentFormat)) {
-      throw new Error(",not able to create tournament knockout format");
+      throw new Error(" => not able to create tournament knockout format ");
     }
     tournamentFormat = tournamentFormat[0];
 
@@ -315,16 +313,16 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
     let roundsData = [];
     roundsData = getBracketsRoundsAndMatches(data.participants);
 
-    // STEP 7 
+    // STEP 7
     // Forming rounds Data;
-    roundsData = roundsData?.map((round)=>{
+    roundsData = roundsData?.map((round) => {
       return {
-        roundNumber : round?.roundNumber,
-        roundName : round?.roundName,
-        matches : round?.matches,
-        tournamentID : tourId,
-        formatTypeID : tournamentFormat?._id?.toString(),
-      }
+        roundNumber: round?.roundNumber,
+        roundName: round?.roundName,
+        matches: round?.matches,
+        tournamentID: tourId,
+        formatTypeID: tournamentFormat?._id?.toString(),
+      };
     });
 
     // STEP : 8
@@ -380,9 +378,7 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
       }); // creating matches
 
       if (_.isEmpty(matches)) {
-        throw new Error(
-          ",not able to create matches for the respective round"
-        );
+        throw new Error(",not able to create matches for the respective round");
       }
       matchIds = matches?.map((match) => match?._id?.toString());
       round?.matches.push(...matchIds); // storing matches ids
@@ -484,7 +480,9 @@ const tournamentKnockoutFormatCreation = async (dataPayload) => {
 
     // STEP 11
     // handling winners round one for odd match also updating its references into next matches and round
-    allRoundsData.sort((round1,round2)=>round1?.roundNumber - round2?.roundNumber);
+    allRoundsData.sort(
+      (round1, round2) => round1?.roundNumber - round2?.roundNumber
+    );
     // let participants = allRoundsData[0].participants.length;
     // if (participants % 2 !== 0 && allRoundsData[0].roundNumber === 1) {
     //   let matchesLength = allRoundsData[0]?.matches.length;

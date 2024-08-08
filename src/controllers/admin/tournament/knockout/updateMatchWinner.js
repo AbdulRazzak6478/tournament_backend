@@ -5,7 +5,6 @@ const {
 } = require("../../../../utils/response.js");
 const tournamentMatchModel = require("../../../../models/tournamentMatch.js");
 const tournamentRoundModel = require("../../../../models/tournamentRounds.js");
-const tournamentKnockoutModel = require("../../../../models/tournamentKnockoutFormat.js");
 const mongoose = require("mongoose");
 const _ = require("lodash");
 
@@ -13,6 +12,7 @@ const _ = require("lodash");
 function isValidObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id);
 }
+
 const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
   const session = await mongoose.startSession();
   try {
@@ -60,36 +60,15 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
       .findById(match?.roundID)
       .populate("matches")
       .session(session);
-    let tournamentFormat = await tournamentKnockoutModel
-      .findById(match?.formatID?.toString())
-      .session(session);
-    if (_.isEmpty(tournamentFormat)) {
-      return res
-        .status(400)
-        .json(failed_response(400, "Tournament format not found", false));
-    }
-
     if (match?.teamA?.toString() || match?.teamB?.toString()) {
       if (!match?.teamA && match?.matchA) {
         let message = `${match?.matchA?.name}'s  winner is not declared `;
         return res.status(400).json(failed_response(400, message, {}, false));
       }
-      // if(!match?.teamA && !match?.matchA)
-      // {
-      //   if(tournamentFormat?.totalRounds !== currentRound?.roundNumber){
-      //     return res.status(400).json(failed_response(400, "Participants not assigned",{},false));
-      //   }
-      // }
       if (!match?.teamB && match?.matchB) {
         let message = `${match?.matchB?.name}'s  winner is not declared `;
         return res.status(400).json(failed_response(400, message, {}, false));
       }
-      // if(!match?.teamB && !match?.matchB)
-      //   {
-      //     if(tournamentFormat?.totalRounds !== currentRound?.roundNumber){
-      //       return res.status(400).json(failed_response(400, "Participants not assigned",{},false));
-      //     }
-      //   }
     } else {
       if (match?.matchA && match?.matchB) {
         return res
@@ -150,14 +129,20 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
     });
     if (exist.length === 0) {
       currentRound.winners.push(updatedMatch?.winner?.toString());
-      currentRound = await currentRound.save({ session });
     } else {
       currentRound.winners = currentRound.winners.filter(
         (winnerId) => winnerId !== exist[0]
       );
       currentRound.winners.push(updatedMatch?.winner.toString());
-      currentRound = await currentRound.save({ session });
     }
+    let idx = 0;
+    currentRound.matches.forEach((match, index) => {
+      if (match?._id?.toString() === updatedMatch?._id?.toString()) {
+        idx = index;
+      }
+    });
+    currentRound.matches[idx].winner = updatedMatch?.winner;
+    currentRound = await currentRound.save({ session });
 
     let responseData = {};
     if (updatedMatch?.nextMatch) {
@@ -194,20 +179,17 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
         });
         if (exist.length === 0) {
           nextRound.participants.push(updatedMatch?.winner.toString());
-          nextRound = await nextRound.save({ session });
         } else {
           nextRound.participants = nextRound.participants.filter(
             (winnerId) => winnerId !== exist[0]
           );
           nextRound.participants.push(updatedMatch?.winner.toString());
-          nextRound = await nextRound.save({ session });
         }
       }
       nextRound = await nextRound.save({ session });
       responseData = {
         currentMatch: updatedMatch,
         nextMatchDetails,
-        nextRound,
       };
     } else {
       responseData = {
@@ -216,8 +198,6 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
     }
 
     //scheduling next round matches
-
-    let nextRoundDetails = {};
     let isRoundCompleted = true;
     currentRound?.matches?.forEach((match) => {
       if (!match?.winner) {
@@ -249,7 +229,7 @@ const updateTournamentRoundMatchWinner = catchAsync(async (req, res) => {
       .json(
         failed_response(
           400,
-          "Something went wrong while while creating tournament ",
+          "Something went wrong while updating winner ",
           { message: err.message },
           false
         )

@@ -30,7 +30,7 @@ const arrangingParticipantsManually = async (participantsArr, roundData) => {
     return roundData;
   } catch (error) {
     throw new Error(
-      " => error in arranging teams into round " + error?.message
+      ",error in arranging teams into round " + error?.message
     );
   }
 };
@@ -61,7 +61,7 @@ const arrangingParticipantsBasedOnFixingType = catchAsync(async (req, res) => {
         .json(
           failed_response(
             400,
-            " participantsArr is not an array of Ids ",
+            "participantsArr is not an array of Ids ",
             {},
             false
           )
@@ -78,7 +78,7 @@ const arrangingParticipantsBasedOnFixingType = catchAsync(async (req, res) => {
         .json(
           failed_response(
             400,
-            " incoming field :participantsArr:  " +
+            " incoming field :participantsArr:" +
               isParticipantsArrValid.length +
               " ids are not valid",
             { inValid_Ids: isParticipantsArrValid },
@@ -90,6 +90,7 @@ const arrangingParticipantsBasedOnFixingType = catchAsync(async (req, res) => {
     let roundData = await tournamentRoundModel
       .findOne({ _id: roundID })
       .populate(["matches"]);
+
 
     if (roundData?.winners.length > 0) {
       return res

@@ -8,6 +8,7 @@ const mongoose = require("mongoose");
 const tournamentModel = require("../../../models/tournament.js");
 const _ = require("lodash");
 const updateKnockoutTournamentDetails = require("./knockout/updateKnockoutTournament.js");
+const updateDoubleKnockoutTournamentDetails = require("./doubleKnockout/updateDoubleKnockoutTournamentDetails.js");
 
 // Validation schema using Yup
 const tournamentValidationSchema = Yup.object({
@@ -16,7 +17,7 @@ const tournamentValidationSchema = Yup.object({
   gameType: Yup.string().required("gameType is required"),
   formatType: Yup.string().required("formatType is required"),
   fixingType: Yup.string().required("fixingType is required"),
-  sportName: Yup.string().required("sportName is required"),
+  sportName: Yup.string().required("sport is required"),
   participants: Yup.number().required("participants are required"),
   startDate: Yup.date().required("startDate is required"),
   endDate: Yup.date().required("endDate is required"),
@@ -261,9 +262,10 @@ const updateTournamentDetails = catchAsync(async (req, res) => {
             )
           );
       }
-      responseData = {
-        message: "work in progress for double_elimination_bracket",
-      };
+      responseData = await updateDoubleKnockoutTournamentDetails(data);
+      // responseData = {
+      //   message: "work in progress for double_elimination_bracket",
+      // };
     }
     if (data.formatType.toLowerCase() === "round_robbin") {
       if (

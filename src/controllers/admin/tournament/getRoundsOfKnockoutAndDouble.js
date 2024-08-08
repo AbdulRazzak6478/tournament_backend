@@ -130,7 +130,14 @@ const getAllRoundsAndMatchesOfFormat = catchAsync(async (req, res) => {
     console.log("before venue");
     let rounds = await tournamentRoundModel
       .find({ tournamentID: data.tournamentID, brackets: data.brackets })
-      .populate({ path: "matches", populate: ["matchA", "matchB",{path : 'venueID' , populate : 'venueClubId'}] })
+      .populate({
+        path: "matches",
+        populate: [
+          "matchA",
+          "matchB",
+          { path: "venueID", populate: "venueClubId" },
+        ],
+      })
       .populate("participants");
     if (_.isEmpty(rounds)) {
       rounds = [];

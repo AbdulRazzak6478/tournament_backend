@@ -1,21 +1,12 @@
-const categoriesModel = require("../../../../models/categories");
-const subCategoriesModel = require("../../../../models/subCategories");
 const tournamentModel = require("../../../../models/tournament");
 const tournamentTeamModel = require("../../../../models/tournamentTeam");
 const tournamentPlayerModel = require("../../../../models/tournamentPlayer");
 const tournamentRoundsModel = require("../../../../models/tournamentRounds");
 const tournamentMatchModel = require("../../../../models/tournamentMatch");
 const tournamentDoubleFormat = require("../../../../models/tournamentDoubleFormat");
-const tournamentIdModel = require("../../../../models/tournamentIds");
 const mongoose = require("mongoose");
 const _ = require("lodash");
 
-const generateTournamentId = async () => {
-  const count = await tournamentIdModel.find({});
-  const newId = `GBT${(count.length + 1).toString().padStart(6, "0")}`;
-  console.log("tournament unique id : ", newId);
-  return newId;
-};
 const getRoundsNamesForBrackets = (bracketData) => {
   let roundName = "";
   for (let i = 1; i <= bracketData.length; i++) {
@@ -37,8 +28,6 @@ const getRoundsNamesForBrackets = (bracketData) => {
 const getBracketsRoundsAndMatches = (participants) => {
   try {
     let totalRounds = Math.ceil(Math.log2(participants));
-    console.log("participants : ", participants);
-    console.log("total : ", totalRounds);
 
     let tourTeams = participants;
     let winnersBrackets = [];
@@ -92,25 +81,21 @@ const getBracketsRoundsAndMatches = (participants) => {
       let losersBracketLosers = Math.floor(winners / 2);
       let losersObj = {
         roundNumber: round + 1,
-        losersMatches,
-        losersWinners,
-        losersBracketLosers,
+        matches: losersMatches,
+        winners: losersWinners,
+        losers: losersBracketLosers,
       };
       losersBrackets.push(losersObj);
       winners = losersMatches;
     }
     winnersBrackets = getRoundsNamesForBrackets(winnersBrackets);
     losersBrackets = getRoundsNamesForBrackets(losersBrackets);
-    console.log("winners brackets data : ", winnersBrackets);
-    console.log("losers brackets data : ", losersBrackets);
     const winnersRoundNames = winnersBrackets?.map(
       (bracket) => bracket?.roundName
     );
     const losersRoundNames = losersBrackets?.map(
       (bracket) => bracket?.roundName
     );
-    console.log("winners round names : ", winnersRoundNames);
-    console.log("losersRoundNames round names : ", losersRoundNames);
     const bracketsPayload = {
       winnersBrackets,
       losersBrackets,
@@ -196,7 +181,6 @@ const createRoundsAndThereMatches = async (
       round = await round.save({ session });
       roundsAndMatches.push(round);
     }
-    console.log("rounds length : ", roundsAndMatches.length);
     return roundsAndMatches;
   } catch (error) {
     throw new Error(
@@ -236,12 +220,10 @@ const referencingMatchesToNextMatches = async (
       const matchArray = round?.matches?.map((match) => match?._id?.toString());
       roundMatchIdsMap.set(round.roundNumber, matchArray);
     });
-    console.log("round matches ids map : ", roundMatchIdsMap);
 
     // iterating over the rounds and there matches to add reference of next rounds matches
     for (let round of rounds) {
       let roundMatches = allRoundsData[round - 1].matches;
-      console.log("round : ", round, " , matches : ", roundMatches.length);
 
       // referencing next round or match in current match
       let index = 0;
@@ -285,16 +267,8 @@ const referencingMatchesToNextMatches = async (
     // matches placeholder making
     // 1. start allocating placeholder from next round
     for (let i = 2; i <= rounds.length; i++) {
-      console.log(
-        "previous rounds matches ids  : ",
-        roundMatchIdsMap.get(i - 1)
-      );
       let prevRoundMatchesIds = roundMatchIdsMap.get(i - 1);
       let currentRoundMatches = allRoundsData[i - 1].matches;
-      console.log(
-        "current round matches length : ",
-        currentRoundMatches.length
-      );
       let index = 0;
       for (let match = 0; match < currentRoundMatches.length; match++) {
         if (index < prevRoundMatchesIds.length) {
@@ -327,16 +301,7 @@ const assigningLosersIntoLosersBracket = async (
   try {
     let round = 0;
     for (let loserRound of losersBracket) {
-      console.log(
-        "loser round " +
-          loserRound.roundNumber +
-          ",and matches : " +
-          loserRound.matches.length
-      );
       let index = 0;
-      if (round == 0) {
-        console.log("loser bracket round 1 : ", loserRound);
-      }
       for (let match = 0; match < loserRound?.matches?.length; match++) {
         if (round >= winnersBracket.length) {
           break;
@@ -397,13 +362,8 @@ const assigningLosersIntoLosersBracket = async (
           });
         }
       }
-      if (round == 0) {
-        console.log("trigger in ", index, loserRound.matches);
-      }
       round++;
     }
-
-    console.log("losers Rounds length : ", losersBracket.length);
 
     return losersBracket;
   } catch (error) {
@@ -453,7 +413,7 @@ const creatingFinalBracketRoundMatch = async (data, session) => {
       finalMatch,
     };
   } catch (error) {
-    throw new Error(" => error in creating final bracket : " + error?.message);
+    throw new Error(",error in creating final bracket : " + error?.message);
   }
 };
 
@@ -489,180 +449,89 @@ const arrangingTeamsBasedOnFixingType = (fixingType, teams) => {
         sortMetric: Math.floor(Math.random() * teams.length),
       }));
       // Sort based on the generated metrics
-      console.log("randomMetrics before sort: ", randomMetrics);
       randomMetrics.sort((a, b) => a.sortMetric - b.sortMetric);
-      console.log("randomMetrics after sort : ", randomMetrics);
       // Extract sorted items
       arrangedTeams = randomMetrics.map((item) => item.item);
     }
     if (matchFixingType === "sequential") {
       arrangedTeams = teams;
     }
-
-    console.log(matchFixingType, " : ", arrangedTeams);
     return arrangedTeams;
   } catch (error) {
     console.log(
-      " => error in arranging teams or participants in starting round",
+      ",error in arranging teams or participants in starting round",
       error?.message
     );
     throw new Error(error?.message);
   }
 };
-const createDoubleEliminationTournament = async (data) => {
+const removeParticipantFromDoubleKnockoutTournament = async (
+  tournament,
+  participantId
+) => {
   const session = await mongoose.startSession();
   try {
     session.startTransaction();
 
-    // Getting unique id for tournament
-    data.participants = +data.participants;
-    console.log("data in double creation : ", data);
-
-    let tournamentUniqueID = await generateTournamentId();
-    console.log("tournament unique id : ", tournamentUniqueID);
-    // if (tournamentUniqueID) {
-    //   throw new Error(", tournamentID is created");
-    // }
-
-    // categories section
-
-    let mainCategory = await categoriesModel
-      .findById(data?.mainCategoryID)
+    let tournamentDetails = await tournamentModel
+      .findById(tournament?._id?.toString())
       .session(session);
-    if (_.isEmpty(mainCategory)) {
-      throw new Error("main category not found");
-    }
-    let subCategory = await subCategoriesModel
-      .findById(data?.subCategoryID)
+    let tournamentFormatDetails = await tournamentDoubleFormat
+      .findById(tournament?.formatID?.toString())
       .session(session);
-    if (_.isEmpty(subCategory)) {
-      throw new Error("sub category not found");
-    }
-
-    // tournament data Payload
-    const tournamentData = {
-      tournamentID: tournamentUniqueID,
-      mainCategoryID: mainCategory?._id?.toString(),
-      mainCategoryName: mainCategory?.categoryName,
-      subCategoryID: subCategory?._id?.toString(),
-      subCategoryName: subCategory?.subCategoryName,
-      sportName: data.sport,
-      formatName: data.formatType,
-      fixingType: data.fixingType,
-      gameType: data.gameType,
-    };
-    if (data.gameType === "team") {
-      tournamentData.totalTeams = data.participants;
-    }
-    if (data.gameType === "individual") {
-      tournamentData.totalParticipants = data.participants;
-    }
-
-    let tournament = await tournamentModel.create([tournamentData], {
-      session: session,
-    });
-    if (_.isEmpty(tournament)) {
-      throw new Error(" not able to create tournament");
-    }
-    tournament = tournament[0];
-
-    // creating record of tournamentId in  model
-    const uniqueId = await tournamentIdModel.create(
-      [{ tournamentID: tournamentUniqueID }],
-      { session: session }
-    );
-    console.log("tournament Unique id : ", uniqueId);
-
-    let participantsIds = [];
-    const tourId = tournament?._id?.toString();
-    if (data.gameType === "team") {
-      let teamsObjData = [];
-      for (let i = 1; i <= data.participants; i++) {
-        let obj = {
-          tournamentID: tourId,
-          teamNumber: i,
-          sportName: data.sport,
-          name: "Team #" + i,
-        };
-        teamsObjData.push(obj);
-      }
-
-      // creating teams in one time only and passing session into it
-
-      const teams = await tournamentTeamModel.create([...teamsObjData], {
-        session: session,
-      });
+    // deleting existing rounds and there tournament matches
+    await tournamentRoundsModel
+      .deleteMany({
+        tournamentID: tournamentDetails?._id,
+      })
+      .session(session);
+    await tournamentMatchModel
+      .deleteMany({
+        tournamentID: tournamentDetails?._id,
+      })
+      .session(session);
+        // Creating new Participant
+    // gameType == team
+    let tourID = tournamentDetails?._id?.toString();
+    let allParticipantsIds = [];
+    if (tournamentDetails?.gameType === "team") {
+        await tournamentTeamModel.findByIdAndDelete(participantId).session(session);
+      const teams = await tournamentTeamModel
+        .find({ tournamentID: tourID })
+        .session(session);
       if (_.isEmpty(teams)) {
-        throw new Error(",not able to create teams");
+        throw new Error(
+          ",Error occur in fetching teams in double knockout section"
+        );
       }
-      let teamsIds = teams?.map((team) => team?._id?.toString());
-      // if we have team ids storing and saving into tournament model
-      tournament.teams = teamsIds;
-      tournament = await tournament.save({ session });
-      participantsIds = teamsIds;
+      teams.sort((team1,team2)=>team1?.teamNumber - team2?.teamNumber);
+      allParticipantsIds = teams?.map((team) => team?._id?.toString());
+      tournamentDetails.totalTeams = allParticipantsIds.length;
+      tournamentDetails.teams = allParticipantsIds;
     }
-
-    if (data.gameType === "individual") {
-      let playersObjData = [];
-      for (let i = 1; i <= data.participants; i++) {
-        let obj = {
-          tournamentID: tourId,
-          playerNumber: i,
-          sportName: data.sport,
-          name: "Player #" + i,
-        };
-        playersObjData.push(obj);
-      }
-
-      // creating players in one time only and passing session into it
-
-      const players = await tournamentPlayerModel.create([...playersObjData], {
-        session: session,
-      });
+    // gameType == individual
+    if (tournamentDetails?.gameType === "individual") {
+      await tournamentPlayerModel.findByIdAndDelete(participantId).session(session);
+      const players = await tournamentPlayerModel
+        .find({ tournamentID: tourID })
+        .session(session);
       if (_.isEmpty(players)) {
-        throw new Error(",not able to create players");
+        throw new Error(
+          ",Error occur in fetching players in double knockout section"
+        );
       }
-      let playersIds = players?.map((player) => player?._id?.toString());
-      // if we have players ids storing and saving into tournament model
-      tournament.participants = playersIds;
-      tournament = await tournament.save({ session });
-      participantsIds = playersIds;
+      players.sort((player1,player2)=>player1?.playerNumber - player2?.playerNumber);
+      allParticipantsIds = players?.map((team) => team?._id?.toString());
+      tournamentDetails.totalParticipants = allParticipantsIds.length;
+      tournamentDetails.participants = allParticipantsIds;
     }
 
-    // Getting number of rounds possible in tournament
-    let roundsBrackets = getBracketsRoundsAndMatches(data.participants);
+    // // preparing rounds data and number of matches possible in each round and storing them in roundsData
 
-    // formatData Payload
-    const totalWinnersRounds = roundsBrackets?.winnersBrackets.length;
-    const totalLosersRounds = roundsBrackets?.losersBrackets.length;
-    const winnersRoundsNames = roundsBrackets?.winnersRoundNames;
-    const losersRoundsNames = roundsBrackets?.losersRoundNames;
-    const formatData = {
-      tournamentID: tournament?._id?.toString(),
-      formatName: data.formatType,
-      fixingType: data.fixingType,
-      gameType: data.gameType,
-      totalWinnersRounds,
-      totalLosersRounds,
-      winnersRoundsNames,
-      losersRoundsNames,
-      finalRoundName: "Final",
-    };
-    if (data.gameType === "team") {
-      formatData.totalTeams = data.participants;
-      formatData.teams = participantsIds;
-    } else {
-      formatData.totalParticipants = data.participants;
-      formatData.participants = participantsIds;
-    }
-    console.log("double format data : ", formatData);
-    // creating tournament format
-    let tournamentFormat = await tournamentDoubleFormat.create([formatData], {
-      session: session,
-    });
-    tournamentFormat = tournamentFormat[0];
-    console.log("tournament format created: ", tournamentFormat);
-
+    let roundsBrackets = getBracketsRoundsAndMatches(allParticipantsIds.length);
+    // Forming rounds Data;
+    const winnersRoundNames = roundsBrackets?.winnersRoundNames;
+    const losersRoundNames = roundsBrackets?.losersRoundNames;
     let losersBrackets = roundsBrackets.losersBrackets?.map((round) => {
       return {
         roundNumber: round?.roundNumber,
@@ -686,15 +555,15 @@ const createDoubleEliminationTournament = async (data) => {
     // Iterating over rounds data and creating rounds and matches respective to rounds and storing them
 
     let tournamentID = tournament?._id?.toString();
-    let formatTypeID = tournamentFormat?._id?.toString();
+    let formatTypeID = tournamentFormatDetails?._id?.toString();
 
     const roundsDataPayload = {
       tournamentID: tournamentID,
       formatTypeID: formatTypeID,
-      formatType: data.formatType,
-      participantsIds,
-      fixingType: data.fixingType,
-      gameType: data.gameType,
+      formatType: tournamentDetails?.formatType,
+      participantsIds: allParticipantsIds,
+      fixingType: tournamentDetails?.fixingType,
+      gameType: tournamentDetails?.gameType,
     };
     await createRoundsAndThereMatches(
       roundsDataPayload,
@@ -718,13 +587,8 @@ const createDoubleEliminationTournament = async (data) => {
     // arranging teams in matches based on fixingType and also handling if 1 team left in 1st round to happen match
 
     const arrangedTeams = arrangingTeamsBasedOnFixingType(
-      data.fixingType,
-      participantsIds
-    );
-    console.log(
-      "arranged Teams length : ",
-      arrangedTeams,
-      arrangedTeams.length
+      tournamentDetails?.fixingType,
+      allParticipantsIds
     );
 
     winnersRoundsReferences.sort(
@@ -771,9 +635,9 @@ const createDoubleEliminationTournament = async (data) => {
     const finalObjData = {
       tournamentID: tournamentID,
       formatTypeID: formatTypeID,
-      gameType: data.gameType,
-      formatType: data.formatType,
-      fixingType: data.fixingType,
+      gameType: tournamentDetails?.gameType,
+      formatType: tournamentDetails?.formatType,
+      fixingType: tournamentDetails?.fixingType,
     };
     const finalBracketData = await creatingFinalBracketRoundMatch(
       finalObjData,
@@ -805,9 +669,6 @@ const createDoubleEliminationTournament = async (data) => {
       });
     FinalBracketMatch = await FinalBracketMatch.save({ session });
 
-    console.log("final round : ", finalBracketRound);
-    console.log("final match : ", FinalBracketMatch);
-
     let winnersRoundsIDs = winnersRoundsReferences?.map((round) =>
       round?._id?.toString()
     );
@@ -815,19 +676,28 @@ const createDoubleEliminationTournament = async (data) => {
       round?._id?.toString()
     );
     let finalRoundID = [finalBracketRound?._id?.toString()];
-    console.log("winners ids : ", winnersRoundsIDs);
-    console.log("losers ids : ", losersRoundsIDs);
-    console.log("final ids : ", finalRoundID);
-    tournamentFormat.winnersRoundsIds = winnersRoundsIDs;
-    tournamentFormat.losersRoundsIds = losersRoundsIDs;
-    tournamentFormat.finalRoundId = finalRoundID;
-    tournamentFormat = await tournamentFormat.save({ session });
-    tournament.formatID = tournamentFormat?._id?.toString();
-    tournament = await tournament.save({ session });
+    tournamentFormatDetails.totalWinnersRounds = winnersRoundsIDs.length;
+    tournamentFormatDetails.totalLosersRounds = losersRoundsIDs.length;
+    tournamentFormatDetails.winnersRoundsNames = winnersRoundNames;
+    tournamentFormatDetails.losersRoundsNames = losersRoundNames;
+
+    tournamentFormatDetails.winnersRoundsIds = winnersRoundsIDs;
+    tournamentFormatDetails.losersRoundsIds = losersRoundsIDs;
+    tournamentFormatDetails.finalRoundId = finalRoundID;
+    if (tournamentFormatDetails?.gameType === "team") {
+      tournamentFormatDetails.totalTeams = allParticipantsIds.length;
+      tournamentFormatDetails.teams = allParticipantsIds;
+    }
+    if (tournamentFormatDetails?.gameType === "individual") {
+      tournamentFormatDetails.totalParticipants = allParticipantsIds.length;
+      tournamentFormatDetails.participants = allParticipantsIds;
+    }
+    tournamentFormatDetails = await tournamentFormatDetails.save({ session });
+    tournamentDetails.formatID = tournamentFormatDetails?._id?.toString();
+    tournamentDetails = await tournamentDetails.save({ session });
     const responsePayload = {
-      tournament: tournament,
+      tournament: tournamentDetails,
     };
-    // console.log("responsePayload : ", responsePayload);
     await session.commitTransaction();
     await session.endSession();
     return responsePayload;
@@ -844,4 +714,4 @@ const createDoubleEliminationTournament = async (data) => {
   }
 };
 
-module.exports = createDoubleEliminationTournament;
+module.exports = removeParticipantFromDoubleKnockoutTournament;

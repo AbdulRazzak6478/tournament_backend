@@ -66,8 +66,8 @@ const getRoundsNamesForBrackets = (bracketData) => {
         i === bracketData.length - 1
           ? "Semi Final"
           : i === bracketData.length - 2
-          ? "Quarter Final"
-          : `Qualification Round ${i}`;
+            ? "Quarter Final"
+            : `Qualification Round ${i}`;
     }
     bracketData[i - 1].roundName = roundName;
   }
@@ -333,8 +333,8 @@ const updateKnockoutTournamentDetails = async (data) => {
             i === totalRounds - 1
               ? "Semi Final"
               : i === totalRounds - 2
-              ? "Quarter Final"
-              : `Qualification Round ${i}`;
+                ? "Quarter Final"
+                : `Qualification Round ${i}`;
           roundNames.push(roundType); // storing rounds names into roundsNames array for reference
         }
       }

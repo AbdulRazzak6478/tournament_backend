@@ -126,17 +126,7 @@ const removeParticipantInKnockoutFormatAndReArrangeTournament = async (
       .session(session);
     let tournamentKnockoutDetails = await tournamentKnockoutModel
       .findById(tournament?.formatID?.toString())
-      .populate("rounds")
       .session(session);
-
-    let isWinnerDeclared = false;
-    if (tournamentKnockoutDetails?.rounds[0]?.winners.length > 0) {
-      isWinnerDeclared = true;
-    }
-    if (isWinnerDeclared) {
-      throw new Error(",tournament started cannot remove participants");
-    }
-
     // deleting existing rounds and there tournament matches
     let deleteRounds = await tournamentRoundModel
       .deleteMany({
@@ -149,7 +139,7 @@ const removeParticipantInKnockoutFormatAndReArrangeTournament = async (
       })
       .session(session);
 
-    // Creating new Participant
+    // deleting Participant
     // gameType == team
     let tourID = tournamentDetails?._id?.toString();
     let allParticipantsIds = [];
