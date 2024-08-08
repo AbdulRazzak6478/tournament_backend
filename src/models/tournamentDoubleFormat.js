@@ -92,5 +92,5 @@ const knockoutSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("doubleKnockout", knockoutSchema);
+module.exports = mongoose.model("tournamentDoubleKnockout", knockoutSchema);
 
