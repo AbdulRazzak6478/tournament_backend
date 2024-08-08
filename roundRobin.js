@@ -1,4 +1,4 @@
-const participants = [1, 2, 3, 4, 5, 6,7,8];
+const participants = [1, 2, 3, 4, 5, 6,7,8,9];
 console.log('participant length : ',participants.length);
 
 let totalRounds = 0;

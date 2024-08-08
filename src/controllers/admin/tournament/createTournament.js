@@ -4,6 +4,7 @@ const Yup = require("yup");
 const mongoose = require("mongoose");
 const tournamentKnockoutFormatCreation = require("./knockout/createKnockoutFormat.js");
 const createDoubleEliminationTournament = require("./doubleKnockout/tournamentDoubleFormatCreation.js");
+const createRoundRobbinTournament = require("./roundRobbin/createRoundRobbinTournament.js");
 
 // Validation schema using Yup
 const tournamentValidationSchema = Yup.object({
@@ -149,9 +150,10 @@ const createTournament = catchAsync(async (req, res) => {
                .status(400)
                .json(failed_response(400, "participants should comes in between 2 to 72", {}, false));
          }
-         responseData = {
-            message: "work in progress for round_robbin",
-         };
+         responseData = await createRoundRobbinTournament(data);
+         // responseData = {
+         //    message: "work in progress for round_robbin",
+         // };
       }
       return res
          .status(201)

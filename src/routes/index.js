@@ -14,7 +14,7 @@ const getAllRoundsAndMatchesOfFormat = require("../controllers/admin/tournament/
 const updateTournamentRoundMatchWinner = require("../controllers/admin/tournament/knockout/updateMatchWinner");
 const gettingRoundMatchesForManualFixing = require("../controllers/admin/tournament/match/getRoundMatchesForManualFixing");
 const arrangingParticipantsBasedOnFixingType = require("../controllers/admin/tournament/match/arrangingParticipantsBasedOnFixingType");
-const updateWinnerForDoubleKnockoutBrackets = require("../controllers/admin/tournament/doubleKnockout/updateMatchWinnerBracket");
+const updateWinnerForDoubleKnockoutBrackets = require("../controllers/admin/tournament/doubleKnockout/updateMatchWinnerBrackets");
 const router = express.Router();
 
 // categories routes
