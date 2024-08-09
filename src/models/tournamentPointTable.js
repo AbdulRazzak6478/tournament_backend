@@ -27,27 +27,22 @@ const pointTableSchema = new mongoose.Schema(
     },
     plays: {
       type: Number,
-      required: true,
       default : 0,
     },
     wins: {
       type: Number,
-      required: true,
       default : 0,
     },
     draws: {
       type: Number,
-      required: true,
       default : 0,
     },
     looses: {
       type: Number,
-      required: true,
       default : 0,
     },
     points: {
       type: Number,
-      required: true,
       default : 0,
     }, 
   },

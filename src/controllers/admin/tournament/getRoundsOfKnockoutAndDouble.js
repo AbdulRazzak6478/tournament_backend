@@ -135,7 +135,7 @@ const getAllRoundsAndMatchesOfFormat = catchAsync(async (req, res) => {
         populate: [
           "matchA",
           "matchB",
-          { path: "venueID", populate: "venueClubId" },
+          // { path: "venueID", populate: "venueClubId" },
         ],
       })
       .populate("participants");

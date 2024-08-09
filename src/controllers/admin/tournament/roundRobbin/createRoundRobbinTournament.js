@@ -5,8 +5,9 @@ const tournamentTeamModel = require("../../../../models/tournamentTeam");
 const tournamentPlayerModel = require("../../../../models/tournamentPlayer");
 const tournamentRoundsModel = require("../../../../models/tournamentRounds");
 const tournamentMatchModel = require("../../../../models/tournamentMatch");
-const tournamentKnockoutModel = require("../../../../models/tournamentKnockoutFormat");
+const tournamentFormatModel = require("../../../../models/tournamentRRFormat");
 const tournamentIdModel = require("../../../../models/tournamentIds");
+const tournamentPointTableModel = require("../../../../models/tournamentPointTable");
 const mongoose = require("mongoose");
 const _ = require("lodash");
 
@@ -19,7 +20,6 @@ const generateTournamentId = async () => {
 
 const getRoundsAndMatchesData = (len) => {
   let participants = Array.from(new Array(len), (value, index) => index + 1);
-  console.log("participant length : ", participants.length);
 
   let totalRounds = 0;
 
@@ -30,8 +30,6 @@ const getRoundsAndMatchesData = (len) => {
     totalRounds = participants.length;
   }
   halfSize = Math.floor(participants.length / 2);
-  console.log("total rounds : ", totalRounds);
-  console.log("HALF SIZE", halfSize);
 
   let schedule = [];
 
@@ -58,31 +56,26 @@ const getRoundsAndMatchesData = (len) => {
   let dataPayload = {
     totalRounds: totalRounds,
     matchesLength: halfSize,
-    roundsData: schedule,
+    roundsSchedule: schedule,
   };
-  //   console.log("SCHEDULE", dataPayload);
   return dataPayload;
 };
-// getRoundsAndMatchesData(12);
-const createRoundsAndMatches = async (
-  roundsData,
-  matchesLength,
-  roundsLength,
-  participantsIds
-) => {
+const createRoundsAndMatches = async (roundsData, scheduleData, session) => {
   try {
     const { tournamentID, formatTypeID, formatName, gameType, fixingType } =
       roundsData;
+    const { roundsMatches, matchesLength, totalRounds, participantsIds } =
+      scheduleData;
     let matches = Array.from(
       new Array(matchesLength),
       (value, index) => index + 1
     );
     let rounds = Array.from(
-      new Array(roundsLength),
+      new Array(totalRounds),
       (value, index) => index + 1
     );
 
-    let participantsIdsMap = new Map();
+    let roundsIds = [];
     for (let round of rounds) {
       let data = {
         roundNumber: round,
@@ -93,16 +86,45 @@ const createRoundsAndMatches = async (
         fixingType,
         gameType,
         brackets: "winners",
-        participants : participantsIds
+        participants: participantsIds,
       };
-      console.log("data : ", data);
-
+      let roundDetails = await tournamentRoundsModel.create([data], {
+        session: session,
+      });
+      if (_.isEmpty(roundDetails)) {
+        throw new Error(",Error in creating round " + round);
+      }
+      roundDetails = roundDetails[0];
+      let matchesData = [];
+      for (let match of matches) {
+        const teamA_Id_index = roundsMatches[round - 1][match * 2 - 2];
+        const teamB_Id_index = roundsMatches[round - 1][match * 2 - 1];
+        let matchData = {
+          tournamentID,
+          roundID: roundDetails?._id?.toString(),
+          formatID: formatTypeID,
+          gameType,
+          name: "K1R" + round + "M" + match,
+          teamA: participantsIds[teamA_Id_index - 1],
+          teamB: participantsIds[teamB_Id_index - 1],
+        };
+        matchesData.push(matchData);
+      }
+      let matchesDetails = await tournamentMatchModel.create(matchesData, {
+        session,
+      });
+      if (_.isEmpty(matchesDetails)) {
+        throw new Error(",Error in creating matches for round " + round);
+      }
+      const matchesIds = matchesDetails.map((match) => match?._id?.toString());
+      roundDetails.matches = matchesIds;
+      roundDetails = await roundDetails.save({ session });
+      roundsIds.push(roundDetails?._id?.toString());
     }
-    return {};
+    return roundsIds;
   } catch (error) {
     throw new Error(
-      ",Error in creating rounds and matches for round robbing " +
-        error?.message
+      ",Error in creating rounds and matches for round robbin " + error?.message
     );
   }
 };
@@ -111,6 +133,23 @@ const createRoundRobbinTournament = async (data) => {
   try {
     session.startTransaction();
     data.participants = +data.participants;
+    // Steps For Creation
+    // 1 .mainCategory and subCategory for tournament
+    // 2 . Getting Random string for storing it into tournament => tournamentID  ||  unique to tournament
+    // 3. forming tournament data Payload
+    // 4. tournament creation
+    // 5.creating record of tournamentId in  model
+    // 6. creating participants based on gameType : ['team','individual']
+    // 7. creating round robbin format section
+    // 8. Getting Corresponding Rounds and matches data for creation
+    // 9. Creating Rounds and matches and assigning participants into it
+    // 10. Creating Standing Points Table For Round Robbin
+    // 11. Storing Rounds Ids and pointsTables into Round Robbin Format
+    // 12. Updating tournament to return
+
+    // Start
+
+    // 1 .mainCategory and subCategory for tournament
     const mainCategory = await categoriesModel.findOne({
       _id: data.mainCategoryID,
     });
@@ -124,10 +163,10 @@ const createRoundRobbinTournament = async (data) => {
       throw new Error("subCategory not found");
     }
 
-    // Getting Random string for storing it into tournament => tournamentID  ||  unique to tournament
+    // 2 . Getting Random string for storing it into tournament => tournamentID  ||  unique to tournament
     let tournamentId = await generateTournamentId();
 
-    // tournament data Payload
+    // 3. forming tournament data Payload
     const tournamentData = {
       tournamentID: tournamentId,
       mainCategoryID: mainCategory?._id?.toString(),
@@ -146,6 +185,7 @@ const createRoundRobbinTournament = async (data) => {
       tournamentData.totalParticipants = data.participants;
     }
 
+    // 4. tournament creation
     let tournament = await tournamentModel.create([tournamentData], {
       session: session,
     });
@@ -154,15 +194,16 @@ const createRoundRobbinTournament = async (data) => {
     }
     tournament = tournament[0];
 
-    // creating record of tournamentId in  model
+    // 5.creating record of tournamentId in  model
     const uniqueId = await tournamentIdModel.create(
       [{ tournamentID: tournamentId }],
       { session: session }
     );
-    console.log("tournament Unique id : ", uniqueId);
 
+    // 6. creating participants based on gameType : ['team','individual']
     let participantsIds = [];
     const tourId = tournament?._id?.toString();
+    // 6.1 for teams
     if (data.gameType === "team") {
       let teamsObjData = [];
       for (let i = 1; i <= data.participants; i++) {
@@ -189,6 +230,7 @@ const createRoundRobbinTournament = async (data) => {
       participantsIds = teamsIds;
     }
 
+    // 6.2 for players
     if (data.gameType === "individual") {
       let playersObjData = [];
       for (let i = 1; i <= data.participants; i++) {
@@ -217,8 +259,8 @@ const createRoundRobbinTournament = async (data) => {
       participantsIds = playersIds;
     }
 
-    // creating knockout section
-    // knockoutFormatData Payload
+    // 7. creating round robbin format section
+    // round robbin formatData Payload
     const formatData = {
       tournamentID: tournament?._id?.toString(),
       formatName: data.formatType,
@@ -234,8 +276,8 @@ const createRoundRobbinTournament = async (data) => {
       formatData.participants = participantsIds;
     }
 
-    // creating tournament knockout format
-    let tournamentFormat = await tournamentKnockoutModel.create([formatData], {
+    // creating tournament round robbin format
+    let tournamentFormat = await tournamentFormatModel.create([formatData], {
       session: session,
     });
     if (_.isEmpty(tournamentFormat)) {
@@ -243,8 +285,9 @@ const createRoundRobbinTournament = async (data) => {
     }
     tournamentFormat = tournamentFormat[0];
 
+    // 8. Getting Corresponding Rounds and matches data for creation
     let roundsData = getRoundsAndMatchesData(data.participants);
-    console.log("roundsData : ", roundsData);
+
     const formatID = tournamentFormat?._id?.toString();
     const roundsPayload = {
       tournamentID: tourId,
@@ -253,16 +296,53 @@ const createRoundRobbinTournament = async (data) => {
       gameType: data.gameType,
       fixingType: data.fixingType,
     };
-    const rounds = await createRoundsAndMatches(
+    const scheduleData = {
+      roundsMatches: roundsData.roundsSchedule,
+      matchesLength: roundsData.matchesLength,
+      totalRounds: roundsData.totalRounds,
+      participantsIds,
+    };
+    // 9. Creating Rounds and matches and assigning participants into it
+    const roundIds = await createRoundsAndMatches(
       roundsPayload,
-      roundsData.matchesLength,
-      roundsData.totalRounds,
-      participantsIds
+      scheduleData,
+      session
     );
 
+    // 10. Creating Standing Points Table For Round Robbin
+    const pointTablePayload = participantsIds.map((id) => {
+      return {
+        tournamentID: tourId,
+        formatID: formatID,
+        participantID: id,
+        gameType: data.gameType,
+      };
+    });
+    const pointTable = await tournamentPointTableModel.create(
+      pointTablePayload,
+      { session: session }
+    );
+
+    if (_.isEmpty(pointTable)) {
+      throw new Error(",error in creating point table for participants");
+    }
+
+    const pointTableIds = pointTable.map((record) => record?._id?.toString());
+
+    // 11. Storing Rounds Ids and pointsTables into Round Robbin Format
+    tournamentFormat.pointTable = pointTableIds;
+    tournamentFormat.totalRounds = roundsData.totalRounds;
+    tournamentFormat.rounds = roundIds;
+    tournamentFormat = await tournamentFormat.save({ session });
+
+    // 12. Updating tournament to return
+    tournament.formatID = formatID;
+    tournament = await tournament.save({ session });
     await session.commitTransaction();
     await session.endSession();
-    return roundsData;
+    return {
+      tournament: tournament,
+    };
   } catch (error) {
     await session.abortTransaction();
     await session.endSession();
