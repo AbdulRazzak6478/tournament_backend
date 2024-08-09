@@ -16,6 +16,7 @@ const gettingRoundMatchesForManualFixing = require("../controllers/admin/tournam
 const arrangingParticipantsBasedOnFixingType = require("../controllers/admin/tournament/match/arrangingParticipantsBasedOnFixingType");
 const updateWinnerForDoubleKnockoutBrackets = require("../controllers/admin/tournament/doubleKnockout/updateMatchWinnerBrackets");
 const getPointsTableOfParticipants = require("../controllers/admin/tournament/roundRobbin/getPointsTable");
+const updateWinnerOfRoundRobbinMatch = require("../controllers/admin/tournament/roundRobbin/updateWinnerOfRoundMatch");
 const router = express.Router();
 
 // categories routes
@@ -76,6 +77,11 @@ router.put(
 router.put(
   "/tournament/double/winners/updateWinner",
   updateWinnerForDoubleKnockoutBrackets
+);
+// update Winner For round robbin 
+router.put(
+  "/tournament/RoundRobbin/winners/updateWinner",
+  updateWinnerOfRoundRobbinMatch
 );
 
 
