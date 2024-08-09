@@ -15,6 +15,7 @@ const updateTournamentRoundMatchWinner = require("../controllers/admin/tournamen
 const gettingRoundMatchesForManualFixing = require("../controllers/admin/tournament/match/getRoundMatchesForManualFixing");
 const arrangingParticipantsBasedOnFixingType = require("../controllers/admin/tournament/match/arrangingParticipantsBasedOnFixingType");
 const updateWinnerForDoubleKnockoutBrackets = require("../controllers/admin/tournament/doubleKnockout/updateMatchWinnerBrackets");
+const getPointsTableOfParticipants = require("../controllers/admin/tournament/roundRobbin/getPointsTable");
 const router = express.Router();
 
 // categories routes
@@ -76,6 +77,11 @@ router.put(
   "/tournament/double/winners/updateWinner",
   updateWinnerForDoubleKnockoutBrackets
 );
+
+
+// round robbin
+// GET : Getting Points Table
+router.get('/tournament/RoundRobbin/pointsTable/:tournamentID',getPointsTableOfParticipants)
 
 // pending
 //1. add participants api for double knockout section
