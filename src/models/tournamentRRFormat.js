@@ -21,12 +21,13 @@ const knockoutSchema = new mongoose.Schema(
     },
     totalRounds: {
       type: Number,
-      required : true
+      default : 0,
     },
     rounds: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "tournamentRound",
+        default : null,
       },
     ],
     totalTeams: {
@@ -37,6 +38,12 @@ const knockoutSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    pointTable : [
+      {
+        type : mongoose.Schema.Types.ObjectId,
+        ref : "tournamentPointTable",
+      }
+    ],
     teams: [
       {
         type: mongoose.Schema.Types.ObjectId,

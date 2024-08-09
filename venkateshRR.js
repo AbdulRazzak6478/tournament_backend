@@ -11,9 +11,7 @@ const updateWinner = async (req, res) => {
     if (findMatch.winner !== null) {
       if (findMatch.winner.toString() === winnerId.toString()) {
         return res
-          .status(
-            
-          )
+          .status(200)
           .json({ match: findMatch, message: "Match updated successfully 1" });
       }
 

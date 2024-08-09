@@ -67,7 +67,8 @@ const getRoundsAndMatchesData = (len) => {
 const createRoundsAndMatches = async (
   roundsData,
   matchesLength,
-  roundsLength
+  roundsLength,
+  participantsIds
 ) => {
   try {
     const { tournamentID, formatTypeID, formatName, gameType, fixingType } =
@@ -81,6 +82,7 @@ const createRoundsAndMatches = async (
       (value, index) => index + 1
     );
 
+    let participantsIdsMap = new Map();
     for (let round of rounds) {
       let data = {
         roundNumber: round,
@@ -91,8 +93,10 @@ const createRoundsAndMatches = async (
         fixingType,
         gameType,
         brackets: "winners",
+        participants : participantsIds
       };
       console.log("data : ", data);
+
     }
     return {};
   } catch (error) {
@@ -204,7 +208,7 @@ const createRoundRobbinTournament = async (data) => {
         throw new Error(",Error in fetching players");
       }
       players.sort(
-        (player1, player2) => player1.teamNumber - player2.teamNumber
+        (player1, player2) => player1.playerNumber - player2.playerNumber
       );
       let playersIds = players?.map((player) => player?._id?.toString());
       // if we have players ids storing and saving into tournament model
@@ -220,8 +224,6 @@ const createRoundRobbinTournament = async (data) => {
       formatName: data.formatType,
       fixingType: data.fixingType,
       gameType: data.gameType,
-      // totalRounds: totalRounds,
-      // roundNames: roundNames,
     };
     if (data.gameType === "team") {
       formatData.totalTeams = data.participants;
@@ -241,20 +243,22 @@ const createRoundRobbinTournament = async (data) => {
     }
     tournamentFormat = tournamentFormat[0];
 
-    // let roundsData = getRoundsAndMatchesData(data.participants);
-    // console.log("roundsData : ", roundsData);
-    // const roundsPayload = {
-    //   tournamentID: "fvgbhnmkjhbgvfcd",
-    //   formatTypeID: "dfvgbhnjjnhbgvcfdx",
-    //   formatName: "round_robbin",
-    //   gameType: data.gameType,
-    //   fixingType: data.fixingType,
-    // };
-    // const rounds = await createRoundsAndMatches(
-    //   roundsPayload,
-    //   roundsData.matchesLength,
-    //   roundsData.totalRounds
-    // );
+    let roundsData = getRoundsAndMatchesData(data.participants);
+    console.log("roundsData : ", roundsData);
+    const formatID = tournamentFormat?._id?.toString();
+    const roundsPayload = {
+      tournamentID: tourId,
+      formatTypeID: formatID,
+      formatName: "round_robbin",
+      gameType: data.gameType,
+      fixingType: data.fixingType,
+    };
+    const rounds = await createRoundsAndMatches(
+      roundsPayload,
+      roundsData.matchesLength,
+      roundsData.totalRounds,
+      participantsIds
+    );
 
     await session.commitTransaction();
     await session.endSession();
