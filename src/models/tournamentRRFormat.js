@@ -67,3 +67,5 @@ const knockoutSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("tournamentRoundRobbin", knockoutSchema);
+// /admin/tournament/RoundRobbin/pointsTable/:tournamentID
+// /admin/tournament/RoundRobbin/updateWinner
